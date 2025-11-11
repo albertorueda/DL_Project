@@ -33,8 +33,8 @@ def df_create(file_path: str) -> pd.DataFrame:
     ### ================================================================
     FILTER_TRACKS = True
     APPLY_SEGMENTATION = True
-    NORMALIZE = False
-    INTERPOLATE = False  # Set True to interpolate to regular intervals
+    NORMALIZE = True
+    INTERPOLATE = True  # Set True to interpolate to regular intervals
     ROUND_INTERVAL_MIN = 10
 
     ### ================================================================
