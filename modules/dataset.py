@@ -313,3 +313,6 @@ class AISDataset(Dataset):
         x = self.dataframe.iloc[real_idx: real_idx + self.seq_input_length][['Latitude', 'Longitude', 'SOG', 'COG']].to_numpy(dtype=float)
         y = self.dataframe.iloc[real_idx + self.seq_input_length: real_idx + self.seq_input_length + self.seq_output_length][['Latitude', 'Longitude']].to_numpy(dtype=float)
         return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
+
+
+#
