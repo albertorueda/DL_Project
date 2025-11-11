@@ -1,9 +1,22 @@
+# modules/dataset.py
+
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
+
+# Standard libraries
 import random
+
+# Third-party libraries
 import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset
 import torch
 
+
+### ================================================================
+### --- DATAFRAME CREATION ---
+### ================================================================
 def df_create(file_path: str) -> pd.DataFrame:
     """
     Create a cleaned DataFrame from raw AIS data.
@@ -14,7 +27,19 @@ def df_create(file_path: str) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Cleaned DataFrame with relevant AIS data.
     """
-    
+
+    ### ================================================================
+    ### --- CONFIGURATION FLAGS ---
+    ### ================================================================
+    FILTER_TRACKS = True
+    APPLY_SEGMENTATION = True
+    NORMALIZE = False
+    INTERPOLATE = False  # Set True to interpolate to regular intervals
+    ROUND_INTERVAL_MIN = 10
+
+    ### ================================================================
+    ### STEP 1: READ AND BASIC CLEANING
+    ### ================================================================
     dtypes = {
         "MMSI": "object",
         "SOG": float,
@@ -27,49 +52,81 @@ def df_create(file_path: str) -> pd.DataFrame:
     usecols = list(dtypes.keys())
     df = pd.read_csv(file_path, usecols=usecols, dtype=dtypes)
 
-    # Remove errors
+    ### --- REMOVE OUT-OF-BOUNDS POSITIONS ---
     bbox = [60, 0, 50, 20]
     north, west, south, east = bbox
     df = df[(df["Latitude"] <= north) & (df["Latitude"] >= south) & (df["Longitude"] >= west) & (
             df["Longitude"] <= east)]
-    
-    
+
+    ### --- FILTER BY SHIP TYPE AND MMSI VALIDATION ---
     df = df[df["Type of mobile"].isin(["Class A", "Class B"])].drop(columns=["Type of mobile"])
     df = df[df["MMSI"].str.len() == 9]  # Adhere to MMSI format
     df = df[df["MMSI"].str[:3].astype(int).between(200, 775)]  # Adhere to MID standard
 
+    ### --- TIMESTAMP PARSING ---
     df = df.rename(columns={"# Timestamp": "Timestamp"})
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], format="%d/%m/%Y %H:%M:%S", errors="coerce")
 
+    ### --- TIMESTAMP VALIDATION ---
+    initial_rows = len(df)
+    invalid_ts = df["Timestamp"].isna().sum()
+    if invalid_ts > 0:
+        print(f"[WARNING] {invalid_ts} / {initial_rows} rows have invalid timestamps and will be removed.")
+    df = df.dropna(subset=["Timestamp"])
+
+    ### --- REMOVE DUPLICATE ENTRIES ---
     df = df.drop_duplicates(["Timestamp", "MMSI", ], keep="first")
 
-    #PABLO --> Should we add this filter, or thats what the Deep Learning model is for? 
-    #def track_filter(g):
-    #    len_filt = len(g) > 256  # Min required length of track/segment
-    #    sog_filt = 1 <= g["SOG"].max() <= 50  # Remove stationary tracks/segments
-    #    time_filt = (g["Timestamp"].max() - g["Timestamp"].min()).total_seconds() >= 60 * 60  # Min required timespan
-    #    return len_filt and sog_filt and time_filt
+    ### ================================================================
+    ### STEP 2: OPTIONAL TRACK FILTERING AND SEGMENTATION
+    ### ================================================================
+    if FILTER_TRACKS:
+        def track_filter(g):
+            len_filt = len(g) > 256  # Min required length of track/segment
+            sog_filt = 1 <= g["SOG"].max() <= 50  # Remove stationary or outlier segments
+            time_filt = (g["Timestamp"].max() - g["Timestamp"].min()).total_seconds() >= 60 * 60  # >= 1 hour
+            return len_filt and sog_filt and time_filt
 
-    ## Track filtering
-    #df = df.groupby("MMSI").filter(track_filter)
-    #df = df.sort_values(['MMSI', 'Timestamp'])
+        df = df.groupby("MMSI").filter(track_filter)
 
-    ## Divide track into segments based on timegap
-    #df['Segment'] = df.groupby('MMSI')['Timestamp'].transform(
-    #    lambda x: (x.diff().dt.total_seconds().fillna(0) >= 15 * 60).cumsum())  # Max allowed timegap
+    if APPLY_SEGMENTATION:
+        df['Segment'] = df.groupby('MMSI')['Timestamp'].transform(
+            lambda x: (x.diff().dt.total_seconds().fillna(0) >= 15 * 60).cumsum()
+        )
+        df = df.groupby(["MMSI", "Segment"]).filter(track_filter)
+        df = df.reset_index(drop=True)
 
-    ## Segment filtering
-    #df = df.groupby(["MMSI", "Segment"]).filter(track_filter)
-    #df = df.reset_index(drop=True)
-    
+    ### ================================================================
+    ### STEP 3: OPTIONAL INTERPOLATION AND NORMALIZATION
+    ### ================================================================
+    if INTERPOLATE:
+        print(f"[INFO] Interpolating dataset at {ROUND_INTERVAL_MIN}-minute intervals...")
+        df = interp_prev_next_on_rounded(df, n=ROUND_INTERVAL_MIN)
+
+    if NORMALIZE:
+        print("[INFO] Normalizing Latitude and Longitude columns to [0,1] range.")
+        df["Latitude"] = (df["Latitude"] - df["Latitude"].min()) / (df["Latitude"].max() - df["Latitude"].min())
+        df["Longitude"] = (df["Longitude"] - df["Longitude"].min()) / (df["Longitude"].max() - df["Longitude"].min())
+
     df = df.sort_values(['MMSI', 'Timestamp']).reset_index(drop=True)
 
-    #Now we have it in m/s
+    ### ================================================================
+    ### STEP 4: SUMMARY AND FINALIZATION
+    ### ================================================================
+    print(f"[INFO] Final dataset stats:")
+    print(f"  - Total rows: {len(df)}")
+    print(f"  - Unique MMSIs: {df['MMSI'].nunique()}")
+    print(f"  - Time span: {df['Timestamp'].min()} to {df['Timestamp'].max()}")
+
+    ### --- CONVERT SOG FROM KNOTS TO M/S ---
     knots_to_ms = 0.514444
     df["SOG"] = knots_to_ms * df["SOG"]
+
     return df
 
-
+### ================================================================
+### --- TIMESTAMP HANDLING FUNCTIONS ---
+### ================================================================
 def add_timestamps(df: pd.DataFrame, round_interval: str) -> pd.DataFrame:
     """
     Add rounded timestamp columns to the DataFrame.
@@ -105,7 +162,9 @@ def add_timestamps(df: pd.DataFrame, round_interval: str) -> pd.DataFrame:
     
     return df3
 
-
+### ================================================================
+### --- DATA SPLITTING FUNCTION ---
+### ================================================================
 def split_dataset(df: pd.DataFrame, train_frac: float, val_frac: float) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Split the dataset into training, validation, and test sets.
@@ -131,7 +190,9 @@ def split_dataset(df: pd.DataFrame, train_frac: float, val_frac: float) -> tuple
 
     return df_train, df_val, df_test
 
-
+### ================================================================
+### --- INTERPOLATION FUNCTIONS ---
+### ================================================================
 def interp_linear(a, b, r) -> np.ndarray:
     """
     Linear interpolation between a and b with ratio r.
@@ -275,6 +336,9 @@ def interp_prev_next_on_rounded(
     return res
 
 
+### ================================================================
+### --- DATASET CLASS ---
+### ================================================================
 class AISDataset(Dataset):
     def __init__(self, dataset_path: str, seq_input_length: int = 6, seq_output_length: int = 1):
         # We only support seq_output_length of 1 (autoregressive) or equal to seq_input_length (same window size input-output) for now
