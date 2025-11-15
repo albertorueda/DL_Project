@@ -1,27 +1,39 @@
-from modules.dataset import (
-    df_create,
-    add_timestamps,
-    split_dataset,
-    interp_prev_next_on_rounded,
-    INTERPOLATE,
-    ROUND_INTERVAL_MIN,
-)
+"""
+ais_dataset.py
+
+Script to generate the train/validation/test splits from the fully cleaned and preprocessed AIS dataset.
+
+It loads the full dataset from a CSV, splits it by MMSI into train/val/test sets,
+and exports them as separate files. This script is designed to be run after preprocessing.
+"""
+
 
 # =============================================
-# --- LOAD AND PREPROCESS FULL DATASET ---
+# --- IMPORTS ---
+# =============================================
+from modules.ais_preprocessing import (
+    df_create,
+    split_dataset,
+)
+from modules.describe_dataset import (
+    save_all_metrics
+)
+
+
+
+# =============================================
+# --- LOAD AND PREPROCESS AIS DATASET ---
 # =============================================
 data_file = "data/aisdk-2025-02-27.csv"
 df = df_create(data_file)
 
+
+
 # =============================================
-# --- OPTIONAL INTERPOLATION STEP ---
+# --- DATASET METRICS ---
 # =============================================
-if INTERPOLATE:
-    print(f"[INFO] Interpolating to {ROUND_INTERVAL_MIN}-minute intervals...")
-    df = interp_prev_next_on_rounded(df, n=ROUND_INTERVAL_MIN)
-else:
-    print(f"[INFO] Adding timestamp rounding columns...")
-    df = add_timestamps(df, f'{ROUND_INTERVAL_MIN}min')
+save_all_metrics(df, "metrics")
+
 
 # =============================================
 # --- TRAIN/VAL/TEST SPLIT ---
