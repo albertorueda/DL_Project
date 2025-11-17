@@ -1,18 +1,65 @@
+import torch.nn as nn
 from torch.nn import GRU, Module, Linear, ReLU, Sequential, Dropout
 
-class GRUModel(Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1, dropout=0.0):
-        super(GRUModel, self).__init__()
-        self.gru = GRU(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
-        self.fc = Sequential(
-            Linear(hidden_size, hidden_size),
-            ReLU(),
-            Dropout(dropout),
-            Linear(hidden_size, output_size)
+## for now : 
+input_size = 4
+output_size = 2 
+
+### GRU for sequence-to-sequence 
+class GRUModel(nn.Module):
+    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0):
+        super().__init__()
+
+        # Map input from size 4 (input_size) to size 64 (embed_size)
+        self.embedding = nn.Linear(input_size, embed_size)
+
+        # GRU works in 64-dim space 
+        self.gru = nn.GRU(
+            embed_size,
+            hidden_size,
+            num_layers,
+            bias=True,
+            batch_first=True,
+            dropout = dropout ,
+            bidirectional=False
         )
 
+        # Map GRU outputs from size 64 (embed_size) to size 4 (input/output_size) again 
+        self.fc_out = nn.Linear(hidden_size, output_size)
+
     def forward(self, x):
-        out, _ = self.gru(x)
-        out = self.fc(out[:, -1]) # [batch_size, 6]
-        out = out.view(out.size(0), 3, 2) # [batch_size, 3, 2]
+        x = self.embedding(x)        # (batch, seq, 64)
+        out, hidden = self.gru(x)    # (batch, seq, 64)
+        out = self.fc_out(out)       # (batch, seq, 4)
+
         return out
+
+
+class GRUSeq2VecModel(nn.Module):
+    def __init__(self, input_size, embed_size, hidden_size, output_size, num_layers=1, dropout=0.0):
+        super().__init__()
+
+        # Map input from size 4 (input_size) to size 64 (embed_size)
+        self.embedding = nn.Linear(input_size, embed_size)
+
+        # GRU works in 64-dim space 
+        self.gru = nn.GRU(
+            embed_size,
+            hidden_size,
+            num_layers,
+            bias=True,
+            batch_first=True,
+            dropout = dropout ,
+            bidirectional=False
+        )
+
+        # Map GRU final hidden state from size 64 (hidden_size) to size 2 (output_size)
+        self.fc_out = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        x = self.embedding(x)        # (batch, seq, 64)
+        out, hidden = self.gru(x)    # out: (batch, seq, 64), hidden: (num_layers, batch, 64)
+        out = self.fc_out(hidden[-1]) # Take the last layer's hidden state and map to output size
+
+        return out
+
