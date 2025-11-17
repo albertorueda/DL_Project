@@ -96,6 +96,8 @@ def df_create(file_path: str) -> pd.DataFrame:
     usecols = list(dtypes.keys())
     # Load raw AIS data from CSV file with specified columns and types
     df = pd.read_csv(file_path, usecols=usecols, dtype=dtypes)
+    # Rename timestamp column immediately after reading
+    df = df.rename(columns={"# Timestamp": "Timestamp"})
     initial_rows = len(df)
     print(f"[INFO] Loaded raw CSV: {initial_rows} rows.")
 
@@ -147,8 +149,7 @@ def df_create(file_path: str) -> pd.DataFrame:
         print(f"[INFO] Removed {removed} rows failing MMSI MID range validation.")
 
     ### --- TIMESTAMP PARSING ---
-    # Rename timestamp column and convert to datetime for temporal analysis
-    df = df.rename(columns={"# Timestamp": "Timestamp"})
+    # Convert to datetime for temporal analysis
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], format="%d/%m/%Y %H:%M:%S", errors="coerce")
 
     ### --- TIMESTAMP VALIDATION ---
@@ -202,6 +203,8 @@ def df_create(file_path: str) -> pd.DataFrame:
         removed = initial_rows - len(df)
         print(f"[INFO] Removed {removed} rows before year {MIN_VALID_YEAR}.")
 
+    print(f"[INFO] Dataframe after basic cleaning has {len(df)} rows and {df['MMSI'].nunique()} unique MMSIs.")
+
     ### ================================================================
     ### STEP 3: TRACK FILTERING AND SEGMENTATION
     ### ================================================================
@@ -239,6 +242,8 @@ def df_create(file_path: str) -> pd.DataFrame:
         print(f"[INFO] Removed {removed} rows from segments shorter than {MIN_SEGMENT_LENGTH} rows.")
 
         df = df.reset_index(drop=True)
+        # Store MMSI–Timestamp–Segment mapping before interpolation (so we can merge it back later)
+        segment_df = df[["MMSI", "Timestamp", "Segment"]].copy()
     else:
         df['Segment'] = 0  # Default segment assignment when segmentation is disabled
 
@@ -256,34 +261,32 @@ def df_create(file_path: str) -> pd.DataFrame:
         # Columns that can be interpolated linearly
         linear_cols = ["Latitude", "Longitude", "SOG"]
         
-        def interpolate_linear(df, interval="10min", group_col="MMSI", time_col="Timestamp", method="linear"):
+        def interpolate_linear(df_in, interval="10min", group_col="MMSI", method="linear"):
             """
-            Interpolate data at fixed time intervals using pandas' resample function.
-            This ensures consistent temporal resolution for AIS trajectories.
+            Interpolate linear variables (Latitude, Longitude, SOG) using pandas.resample.
+            Ensures that the output DataFrame has columns [MMSI, Timestamp, ...].
+            This version avoids including the MMSI column in the resample mean.
             """
-            df = df.copy()
-            df[time_col] = pd.to_datetime(df[time_col], errors="coerce")
-            df = df.dropna(subset=[time_col])
-            df = df.sort_values([group_col, time_col])
-
-            # Resample and interpolate to fill missing data points at regular intervals
-            resampled_df = (
-                df.groupby(group_col, group_keys=False)
-                .apply(lambda group: group.set_index(time_col)
-                                        .resample(interval)
-                                        .mean()
-                                        .interpolate(method=method)
-                                        .reset_index())
-            )
-
+            df = df_in.copy()
+            # Ensure the index is datetime (it should already be)
+            df.index = pd.to_datetime(df.index, errors="coerce")
+            df = df.dropna(subset=[group_col])
+            linear_cols = ["Latitude", "Longitude", "SOG"]
+            groups = []
+            for mmsi, g in df.groupby(group_col):
+                g.index = pd.to_datetime(g.index, errors="coerce")
+                g_numeric = g[linear_cols]
+                g2 = g_numeric.resample(interval).mean().interpolate(method=method)
+                g2[group_col] = mmsi
+                groups.append(g2)
+            resampled_df = pd.concat(groups).reset_index().rename(columns={"index": "Timestamp"})
             return resampled_df
 
         # Perform linear interpolation for position and speed
         df_linear = interpolate_linear(
-            df[linear_cols + ["MMSI"]], 
+            df[["MMSI"] + linear_cols],
             interval=f"{ROUND_INTERVAL_MIN}min",
             group_col="MMSI",
-            time_col="Timestamp",
             method="linear"
         )
         print(f"[INFO] Linear interpolated rows: {len(df_linear)}")
@@ -303,8 +306,8 @@ def df_create(file_path: str) -> pd.DataFrame:
             result = group.copy()
 
             for col in circular_cols:
-                # 1. Fallback interpolation (pad) to avoid NaNs before trig transform
-                raw = result[col].copy().interpolate(method="pad")
+                # 1. Fallback interpolation (ffill) to avoid NaNs before trig transform
+                raw = result[col].copy().ffill()
 
                 # 2. Convert to radians
                 rad = np.deg2rad(raw)
@@ -329,9 +332,15 @@ def df_create(file_path: str) -> pd.DataFrame:
         # ================================================================
         # --- COMBINE INTERPOLATIONS ---
         # ================================================================
-        # Merge linear and circular interpolated data into a single DataFrame
-        df_interp = pd.concat([df_linear, df_cog], axis=1).reset_index()
-        df = df_interp
+        # Merge linear and circular interpolated data on MMSI + Timestamp
+        # Ensures both interpolation types align in time after resampling.
+        df_interp = df_linear.merge(
+            df_cog.reset_index(),
+            on=["MMSI", "Timestamp"],
+            how="left"
+        )
+        # Merge Segment information back into the interpolated dataset
+        df = df_interp.merge(segment_df, on=["MMSI", "Timestamp"], how="left")
         # Drop any remaining rows with missing critical values
         initial_rows = len(df)
         df = df.dropna(subset=["Latitude", "Longitude", "SOG", "COG"])
@@ -341,8 +350,8 @@ def df_create(file_path: str) -> pd.DataFrame:
     if ENABLE_NORMALIZATION:
         # Normalize Latitude and Longitude to [0,1] to facilitate machine learning model convergence
         print("[INFO] Normalizing Latitude and Longitude columns to [0,1] range.")
-        df["Latitude"] = (df["Latitude"] - df["Latitude"].min()) / (df["Latitude"].max() - df["Latitude"].min())
-        df["Longitude"] = (df["Longitude"] - df["Longitude"].min()) / (df["Longitude"].max() - df["Longitude"].min())
+        df.loc[:, "Latitude"] = (df["Latitude"] - df["Latitude"].min()) / (df["Latitude"].max() - df["Latitude"].min())
+        df.loc[:, "Longitude"] = (df["Longitude"] - df["Longitude"].min()) / (df["Longitude"].max() - df["Longitude"].min())
 
     # Sort data by MMSI and Timestamp to maintain chronological order for each vessel
     df = df.sort_values(['MMSI', 'Timestamp']).reset_index(drop=True)
@@ -379,8 +388,8 @@ def split_dataset(df: pd.DataFrame, train_frac: float, val_frac: float) -> tuple
     test_ships = list(set(df["MMSI"].unique()) - set(train_ships) - set(val_ships))
 
     # Create DataFrames for each split based on vessel membership
-    df_train = df[df["MMSI"].isin(train_ships)].reset_index(drop=True)
-    df_val = df[df["MMSI"].isin(val_ships)].reset_index(drop=True)
-    df_test = df[df["MMSI"].isin(test_ships)].reset_index(drop=True)
+    df_train = df[df["MMSI"].isin(train_ships)].copy().reset_index(drop=True)
+    df_val = df[df["MMSI"].isin(val_ships)].copy().reset_index(drop=True)
+    df_test = df[df["MMSI"].isin(test_ships)].copy().reset_index(drop=True)
 
     return df_train, df_val, df_test
