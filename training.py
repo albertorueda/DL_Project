@@ -28,18 +28,31 @@ if __name__ == "__main__":
 
     # Training loop (simplified)
     num_epochs = 10
+    best_val_loss = float('inf')
+    patience = 3
+    patience_counter = 0
     for epoch in range(num_epochs):
         print(f"Epoch {epoch+1}/{num_epochs}")
+        
         model.train()
         train_loss = 0
+        
+        # Training step
         for batch_idx, (data, target) in enumerate(train_loader):
+            # Move data and target tensors to the appropriate device
             data, target = data.to(device), target.to(device)
+            
+            # Get predicted output and compute loss
             optimizer.zero_grad()
             output = model(data)
             l = loss(output, target)
             print(f"        Batch {batch_idx+1}/{len(train_loader)} - Loss: {l.item()}")
+            
+            # Backpropagation and optimization step
             l.backward()
             optimizer.step()
+            
+            # Accumulate training loss
             train_loss += l.item()
 
         train_loss /= len(train_loader)
@@ -49,10 +62,21 @@ if __name__ == "__main__":
         model.eval()
         val_loss = 0
         with torch.no_grad():
+            # Validation step
             for data, target in val_loader:
                 data, target = data.to(device), target.to(device)
                 output = model(data)
                 val_loss += loss(output, target).item()
+                
+        # Early stopping check
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f"Early stopping triggered at epoch {epoch+1}.")
+                break
 
         val_loss /= len(val_loader)
         print(f"    Validation Loss: {val_loss}")
