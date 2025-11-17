@@ -24,6 +24,7 @@ class AISDataset(Dataset):
             for start_idx in range(len(mmsi_data) - (self.seq_input_length + self.seq_output_length) + 1):
                 real_idx = mmsi_data.index[start_idx]
                 self.valid_idxs.append(real_idx)
+            
                 
         # Normalization parameters
         #self.lat_min = self.dataframe['Latitude'].min()
