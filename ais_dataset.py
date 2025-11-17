@@ -13,20 +13,19 @@ and exports them as separate files. This script is designed to be run after prep
 # =============================================
 from modules.ais_preprocessing import (
     df_create,
-    split_dataset,
+    split_dataset
 )
 from modules.describe_dataset import (
     save_all_metrics
 )
 
 
-
 # =============================================
 # --- LOAD AND PREPROCESS AIS DATASET ---
 # =============================================
-data_file = "data/aisdk-2025-02-27.csv"
+data_file = "Downloads/data/aisdk-2025-02-27.csv"
 df = df_create(data_file)
-
+print(df.head())
 
 
 # =============================================
