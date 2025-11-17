@@ -16,8 +16,10 @@ class AISDataset(Dataset):
         # Precompute valid indices
         unique_mmsis = self.dataframe['MMSI'].unique()
         for mmsi in unique_mmsis:
-            # Get all rows for this MMSI execpt the last seq_input_length + seq_output_length - 1 rows
-            mmsi_data = self.dataframe[self.dataframe['MMSI'] == mmsi]
+            # Get all rows for this MMSI for each Segment except the last seq_input_length + seq_output_length - 1 rows
+            mmsi_data = self.dataframe[self.dataframe['MMSI'] == mmsi].groupby('Segment').apply(lambda x: x).reset_index(drop=True)
+            if len(mmsi_data) < (self.seq_input_length + self.seq_output_length):
+                continue
             # Add the indexes of valid starting points for sequences
             for start_idx in range(len(mmsi_data) - (self.seq_input_length + self.seq_output_length) + 1):
                 real_idx = mmsi_data.index[start_idx]
