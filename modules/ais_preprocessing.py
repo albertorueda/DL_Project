@@ -58,8 +58,10 @@ def df_create(file_path: str) -> pd.DataFrame:
     ENABLE_SEGMENTATION = True
 
     ENABLE_INTERPOLATION = True
-    ENABLE_NORMALIZATION = True
-    
+    ENABLE_NORMALIZATION = False
+
+    ENABLE_SORTING = True
+
     ### ================================================================
     ### --- CONSTANTS ---
     ### ================================================================
@@ -72,6 +74,7 @@ def df_create(file_path: str) -> pd.DataFrame:
     MAX_SOG_THRESHOLD = 30
     MIN_VALID_YEAR = 2015
     MIN_TRACK_LENGTH = 256
+    MIN_SOG_FOR_TRACK = 1
     MAX_SOG_FOR_TRACK = 50
 
     MIN_TRACK_TIMESPAN_SECONDS = 3600
@@ -214,7 +217,7 @@ def df_create(file_path: str) -> pd.DataFrame:
         Ensures only meaningful vessel trajectories are kept for modeling.
         """
         len_filt = len(g) > MIN_TRACK_LENGTH  # Min required length of track/segment
-        sog_filt = 1 <= g["SOG"].max() <= MAX_SOG_FOR_TRACK  # Remove stationary or outlier segments
+        sog_filt = MIN_SOG_FOR_TRACK <= g["SOG"].max() <= MAX_SOG_FOR_TRACK  # Remove stationary or outlier segments
         time_filt = (g["Timestamp"].max() - g["Timestamp"].min()).total_seconds() >= MIN_TRACK_TIMESPAN_SECONDS
         return len_filt and sog_filt and time_filt
 
@@ -247,6 +250,8 @@ def df_create(file_path: str) -> pd.DataFrame:
     else:
         df['Segment'] = 0  # Default segment assignment when segmentation is disabled
 
+    print(f"[INFO] Dataframe after track filtering and segmentation has {len(df)} rows and {df['MMSI'].nunique()} unique MMSIs.")
+
     ### ================================================================
     ### STEP 4: INTERPOLATION AND NORMALIZATION
     ### ================================================================
@@ -261,30 +266,33 @@ def df_create(file_path: str) -> pd.DataFrame:
         # Columns that can be interpolated linearly
         linear_cols = ["Latitude", "Longitude", "SOG"]
         
-        def interpolate_linear(df_in, interval="10min", group_col="MMSI", method="linear"):
+        def interpolate_linear(df_in, interval=f"10min", group_col="MMSI", method="linear"):
             """
             Interpolate linear variables (Latitude, Longitude, SOG) using pandas.resample.
-            Ensures that the output DataFrame has columns [MMSI, Timestamp, ...].
-            This version avoids including the MMSI column in the resample mean.
+            Interpolates per MMSI–Segment pair, and includes Segment column in the output.
+            Returns DataFrame with columns [MMSI, Segment, Timestamp, ...].
             """
             df = df_in.copy()
-            # Ensure the index is datetime (it should already be)
             df.index = pd.to_datetime(df.index, errors="coerce")
-            df = df.dropna(subset=[group_col])
+            df = df.dropna(subset=[group_col, "Segment"])
             linear_cols = ["Latitude", "Longitude", "SOG"]
             groups = []
-            for mmsi, g in df.groupby(group_col):
-                g.index = pd.to_datetime(g.index, errors="coerce")
+            # Group by both MMSI and Segment
+            for (mmsi, segment), g in df.groupby([group_col, "Segment"]):
+                g = g.sort_index()
                 g_numeric = g[linear_cols]
                 g2 = g_numeric.resample(interval).mean().interpolate(method=method)
                 g2[group_col] = mmsi
+                g2["Segment"] = segment
                 groups.append(g2)
-            resampled_df = pd.concat(groups).reset_index().rename(columns={"index": "Timestamp"})
+            resampled_df = pd.concat(groups)
+            # Reset index and rename to Timestamp
+            resampled_df = resampled_df.reset_index().rename(columns={"index": "Timestamp"})
             return resampled_df
 
-        # Perform linear interpolation for position and speed
+        # Perform linear interpolation for position and speed, including Segment
         df_linear = interpolate_linear(
-            df[["MMSI"] + linear_cols],
+            df[["MMSI", "Segment"] + linear_cols],
             interval=f"{ROUND_INTERVAL_MIN}min",
             group_col="MMSI",
             method="linear"
@@ -297,36 +305,40 @@ def df_create(file_path: str) -> pd.DataFrame:
         # Columns that represent angles and require special interpolation to handle wrap-around
         circular_cols = ["COG"]  # Columns measured in degrees on a circular domain
 
-        def interpolate_circular(group):
+        def interpolate_circular(df_in, interval=f"10min", group_col="MMSI"):
             """
-            Perform circular interpolation for angular columns like COG.
-            This handles angle wrap-around correctly by interpolating sine and cosine components.
+            Generalized circular interpolation for angular columns (e.g., COG), per MMSI–Segment.
+            Returns DataFrame with [MMSI, Segment, Timestamp, ...circular_cols...]
             """
-            # Work on a copy to avoid modifying original group during iteration
-            result = group.copy()
+            df = df_in.copy()
+            df.index = pd.to_datetime(df.index, errors="coerce")
+            df = df.dropna(subset=[group_col, "Segment"])
+            groups = []
+            for (mmsi, segment), g in df.groupby([group_col, "Segment"]):
+                g = g.sort_index()
+                # Resample on Timestamp
+                resampled = g[circular_cols].resample(interval).mean()
+                for col in circular_cols:
+                    # Forward fill to avoid NaNs before trig transform
+                    raw = resampled[col].copy().ffill()
+                    rad = np.deg2rad(raw)
+                    sin_interp = pd.Series(np.sin(rad), index=raw.index).interpolate(method="linear")
+                    cos_interp = pd.Series(np.cos(rad), index=raw.index).interpolate(method="linear")
+                    angle_rad = np.arctan2(sin_interp, cos_interp)
+                    resampled[col] = np.rad2deg(angle_rad) % 360
+                resampled[group_col] = mmsi
+                resampled["Segment"] = segment
+                groups.append(resampled)
+            resampled_df = pd.concat(groups)
+            resampled_df = resampled_df.reset_index().rename(columns={"index": "Timestamp"})
+            return resampled_df
 
-            for col in circular_cols:
-                # 1. Fallback interpolation (ffill) to avoid NaNs before trig transform
-                raw = result[col].copy().ffill()
-
-                # 2. Convert to radians
-                rad = np.deg2rad(raw)
-
-                # 3. Interpolate sine and cosine independently
-                sin_interp = np.sin(rad).interpolate(method="linear")
-                cos_interp = np.cos(rad).interpolate(method="linear")
-
-                # 4. Reconstruct angle using arctan2
-                angle_rad = np.arctan2(sin_interp, cos_interp)
-
-                # 5. Convert back to degrees and wrap to [0, 360)
-                result[col] = np.rad2deg(angle_rad) % 360
-
-            # Return only circular columns
-            return result[circular_cols]
-
-        # Apply circular interpolation per MMSI to handle angular data correctly
-        df_cog = df.groupby("MMSI").apply(interpolate_circular)
+        # Apply circular interpolation per MMSI–Segment to handle angular data correctly
+        df_cog = interpolate_circular(
+            df[["MMSI", "Segment"] + circular_cols],
+            interval=f"{ROUND_INTERVAL_MIN}min",
+            group_col="MMSI"
+        )
         print(f"[INFO] Circular interpolated rows: {len(df_cog)}")
 
         # ================================================================
@@ -335,12 +347,12 @@ def df_create(file_path: str) -> pd.DataFrame:
         # Merge linear and circular interpolated data on MMSI + Timestamp
         # Ensures both interpolation types align in time after resampling.
         df_interp = df_linear.merge(
-            df_cog.reset_index(),
-            on=["MMSI", "Timestamp"],
+            df_cog,
+            on=["MMSI", "Segment", "Timestamp"],
             how="left"
         )
-        # Merge Segment information back into the interpolated dataset
-        df = df_interp.merge(segment_df, on=["MMSI", "Timestamp"], how="left")
+        # Segment column is already present in both; no need to merge segment_df again
+        df = df_interp
         # Drop any remaining rows with missing critical values
         initial_rows = len(df)
         df = df.dropna(subset=["Latitude", "Longitude", "SOG", "COG"])
@@ -354,7 +366,8 @@ def df_create(file_path: str) -> pd.DataFrame:
         df.loc[:, "Longitude"] = (df["Longitude"] - df["Longitude"].min()) / (df["Longitude"].max() - df["Longitude"].min())
 
     # Sort data by MMSI and Timestamp to maintain chronological order for each vessel
-    df = df.sort_values(['MMSI', 'Timestamp']).reset_index(drop=True)
+    if ENABLE_SORTING:
+        df = df.sort_values(["MMSI", "Segment", "Timestamp"]).reset_index(drop=True)
 
     ### ================================================================
     ### STEP 4: SUMMARY AND FINALIZATION
