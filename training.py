@@ -1,12 +1,13 @@
 import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 from modules.dataset import AISDataset
 from modules.models import GRUModel
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     # Prepare datasets and data loaders
-    trainset = AISDataset('data/train.csv', seq_input_length=3, seq_output_length=3)
-    valset = AISDataset('data/val.csv', seq_input_length=3, seq_output_length=3)
+    trainset = AISDataset('datasplits/train.csv', seq_input_length=3, seq_output_length=3)
+    valset = AISDataset('datasplits/val.csv', seq_input_length=3, seq_output_length=3)
 
     # Create data loaders
     batch_size = 16
@@ -19,43 +20,64 @@ if __name__ == "__main__":
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
-    model = GRUModel(input_size=4, hidden_size=64, output_size=2*3, num_layers=2, dropout=0.2).to(device)
+    model = GRUModel(input_size=4, embed_size=64, hidden_size=64, output_size=2, num_layers=2, dropout=0.2).to(device)
 
     # Define optimizer and loss function
-    lr = 0.0001
+    lr = 0.00001
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss = torch.nn.MSELoss()
 
     # Training loop (simplified)
     num_epochs = 10
+    best_val_loss = float('inf')
+    patience = 3
+    patience_counter = 0
+
     for epoch in range(num_epochs):
-        print(f"Epoch {epoch+1}/{num_epochs}")
+        print(f"\nEpoch {epoch+1}/{num_epochs}")
+
         model.train()
         train_loss = 0
-        for batch_idx, (data, target) in enumerate(train_loader):
+
+        # Training step with tqdm over batches
+        batch_bar = tqdm(train_loader, desc="Training", leave=False)
+        for batch_idx, (data, target) in enumerate(batch_bar):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
             l = loss(output, target)
-            print(f"        Batch {batch_idx+1}/{len(train_loader)} - Loss: {l.item()}")
             l.backward()
             optimizer.step()
             train_loss += l.item()
+            batch_bar.set_postfix(loss=l.item())
 
         train_loss /= len(train_loader)
-        print(f"    Training Loss: {train_loss}")
+        print(f"Training Loss: {train_loss:.4f}")
 
-        # Validation step
+        # Validation step with tqdm
         model.eval()
         val_loss = 0
+        val_bar = tqdm(val_loader, desc="Validation", leave=False)
         with torch.no_grad():
-            for data, target in val_loader:
+            for data, target in val_bar:
                 data, target = data.to(device), target.to(device)
                 output = model(data)
-                val_loss += loss(output, target).item()
+                batch_loss = loss(output, target).item()
+                val_loss += batch_loss
+                val_bar.set_postfix(loss=batch_loss)
 
         val_loss /= len(val_loader)
-        print(f"    Validation Loss: {val_loss}")
+        print(f"Validation Loss: {val_loss:.4f}")
+
+        # Early stopping check
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f"Early stopping triggered at epoch {epoch+1}.")
+                break
 
     # Save the trained model
     torch.save(model.state_dict(), 'gru_model.pth')
