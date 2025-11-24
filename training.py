@@ -4,6 +4,7 @@ from tqdm import tqdm
 from modules.dataset import AISDataset
 from modules.models import GRUModel
 import matplotlib.pyplot as plt
+from modules.losses import HaversineLoss
 
 if __name__ == "__main__":    
     # Prepare datasets and data loaders
@@ -21,12 +22,12 @@ if __name__ == "__main__":
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
-    model = GRUModel(input_size=4, embed_size=64, hidden_size=64, output_size=2, num_layers=2, dropout=0.2).to(device)
+    model = GRUModel(input_size=5, embed_size=64, hidden_size=64, output_size=2, num_layers=2, dropout=0.2).to(device)
 
     # Define optimizer and loss function
     lr = 0.00001
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss = torch.nn.MSELoss()
+    loss = HaversineLoss()
 
     # Training loop
     num_epochs = 10

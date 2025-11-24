@@ -40,6 +40,21 @@ class AISDataset(Dataset):
 
     def __getitem__(self, idx):
         real_idx = self.valid_idxs[idx]
-        x = self.dataframe.iloc[real_idx: real_idx + self.seq_input_length][['Latitude', 'Longitude', 'SOG', 'COG']].to_numpy(dtype=float)
-        y = self.dataframe.iloc[real_idx + self.seq_input_length: real_idx + self.seq_input_length + self.seq_output_length][['Latitude', 'Longitude']].to_numpy(dtype=float)
-        return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
+
+        # Get sin and cos of COG for better representation
+        cog = self.dataframe.iloc[real_idx: real_idx + self.seq_input_length]['COG'].to_numpy(dtype=float)
+        cog = torch.tensor(cog, dtype=torch.float32) 
+        cog_sin = torch.sin(cog)
+        cog_cos = torch.cos(cog)
+
+        # x features
+        x = self.dataframe.iloc[real_idx: real_idx + self.seq_input_length][['Latitude', 'Longitude', 'SOG']].to_numpy(dtype=float)
+        x = torch.tensor(x, dtype=torch.float32)      
+        x = torch.cat((x, cog_sin.unsqueeze(-1), cog_cos.unsqueeze(-1)), dim=-1)
+
+        # y labels
+        y = self.dataframe.iloc[real_idx + self.seq_input_length: 
+                                real_idx + self.seq_input_length + self.seq_output_length][['Latitude', 'Longitude']].to_numpy(dtype=float)
+        y = torch.tensor(y, dtype=torch.float32)      
+
+        return x, y

@@ -7,11 +7,11 @@ output_size = 2
 
 ### GRU for sequence-to-sequence 
 class GRUModel(nn.Module):
-    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
+    def __init__(self, input_size, embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
         super().__init__()
 
         if first_linear:
-            # Map input from size 4 (input_size) to size 64 (embed_size)
+            # Map input from size 5 (input_size) to size 64 (embed_size)
             self.embedding = nn.Linear(input_size, embed_size)
             # GRU works in 64-dim space 
             self.gru = nn.GRU(
@@ -49,11 +49,11 @@ class GRUModel(nn.Module):
 ### LSTM for sequence-to-sequence
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
+    def __init__(self, input_size, embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
         super().__init__()
 
         if first_linear:
-            # Map input from size 4 (input_size) to size 64 (embed_size)
+            # Map input from size 5 (input_size) to size 64 (embed_size)
             self.embedding = nn.Linear(input_size, embed_size)
 
             # LSTM works in 64-dim space 
