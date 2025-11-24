@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from modules.dataset import AISDataset
 from modules.models import GRUModel
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":    
     # Prepare datasets and data loaders
@@ -27,11 +28,14 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss = torch.nn.MSELoss()
 
-    # Training loop (simplified)
+    # Training loop
     num_epochs = 10
     best_val_loss = float('inf')
     patience = 3
     patience_counter = 0
+    
+    training_losses = []
+    validation_losses = []
 
     for epoch in range(num_epochs):
         print(f"\nEpoch {epoch+1}/{num_epochs}")
@@ -52,6 +56,7 @@ if __name__ == "__main__":
             batch_bar.set_postfix(loss=l.item())
 
         train_loss /= len(train_loader)
+        training_losses.append(train_loss)
         print(f"Training Loss: {train_loss:.4f}")
 
         # Validation step with tqdm
@@ -67,6 +72,7 @@ if __name__ == "__main__":
                 val_bar.set_postfix(loss=batch_loss)
 
         val_loss /= len(val_loader)
+        validation_losses.append(val_loss)
         print(f"Validation Loss: {val_loss:.4f}")
 
         # Early stopping check
@@ -81,3 +87,13 @@ if __name__ == "__main__":
 
     # Save the trained model
     torch.save(model.state_dict(), 'gru_model.pth')
+
+    # Graph training and validation loss
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, len(training_losses) + 1), training_losses, label='Training Loss')
+    plt.plot(range(1, len(validation_losses) + 1), validation_losses, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss Over Epochs')
+    plt.legend()
+    plt.show()
