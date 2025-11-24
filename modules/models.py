@@ -7,22 +7,33 @@ output_size = 2
 
 ### GRU for sequence-to-sequence 
 class GRUModel(nn.Module):
-    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0):
+    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
         super().__init__()
 
-        # Map input from size 4 (input_size) to size 64 (embed_size)
-        self.embedding = nn.Linear(input_size, embed_size)
-
-        # GRU works in 64-dim space 
-        self.gru = nn.GRU(
-            embed_size,
-            hidden_size,
-            num_layers,
-            bias=True,
-            batch_first=True,
-            dropout = dropout ,
-            bidirectional=False
-        )
+        if first_linear:
+            # Map input from size 4 (input_size) to size 64 (embed_size)
+            self.embedding = nn.Linear(input_size, embed_size)
+            # GRU works in 64-dim space 
+            self.gru = nn.GRU(
+                embed_size,
+                hidden_size,
+                num_layers,
+                bias=True,
+                batch_first=True,
+                dropout = dropout ,
+                bidirectional=False
+            )
+        else:
+            # GRU works in 4-dim space 
+            self.gru = nn.GRU(
+                input_size,
+                hidden_size,
+                num_layers,
+                bias=True,
+                batch_first=True,
+                dropout = dropout ,
+                bidirectional=False
+            )
 
         # Map GRU outputs from size 64 (embed_size) to size 2 (input/output_size) again 
         self.fc_out = nn.Linear(hidden_size, output_size)
@@ -38,22 +49,35 @@ class GRUModel(nn.Module):
 ### LSTM for sequence-to-sequence
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0):
+    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
         super().__init__()
 
-        # Map input from size 4 (input_size) to size 64 (embed_size)
-        self.embedding = nn.Linear(input_size, embed_size)
+        if first_linear:
+            # Map input from size 4 (input_size) to size 64 (embed_size)
+            self.embedding = nn.Linear(input_size, embed_size)
 
-        # LSTM works in 64-dim space 
-        self.lstm = nn.LSTM(
-            embed_size,
-            hidden_size,
-            num_layers,
-            bias=True,
-            batch_first=True,
-            dropout = dropout ,
-            bidirectional=False
-        )
+            # LSTM works in 64-dim space 
+            self.lstm = nn.LSTM(
+                embed_size,
+                hidden_size,
+                num_layers,
+                bias=True,
+                batch_first=True,
+                dropout = dropout ,
+                bidirectional=False
+            )
+        
+        else:
+            # LSTM works in 4-dim space 
+            self.lstm = nn.LSTM(
+                input_size,
+                hidden_size,
+                num_layers,
+                bias=True,
+                batch_first=True,
+                dropout = dropout ,
+                bidirectional=False
+            )
 
         # Map LSTM outputs from size 64 (embed_size) to size 2 (input/output_size) again 
         self.fc_out = nn.Linear(hidden_size, output_size)
