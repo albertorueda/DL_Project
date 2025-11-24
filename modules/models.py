@@ -24,17 +24,49 @@ class GRUModel(nn.Module):
             bidirectional=False
         )
 
-        # Map GRU outputs from size 64 (embed_size) to size 4 (input/output_size) again 
+        # Map GRU outputs from size 64 (embed_size) to size 2 (input/output_size) again 
         self.fc_out = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
         x = self.embedding(x)        # (batch, seq, 64)
         out, hidden = self.gru(x)    # (batch, seq, 64)
-        out = self.fc_out(out)       # (batch, seq, 4)
+        out = self.fc_out(out)       # (batch, seq, 2)
 
         return out
 
 
+### LSTM for sequence-to-sequence
+
+class LSTMModel(nn.Module):
+    def __init__(self, input_size,embed_size, hidden_size, output_size, num_layers=1, dropout=0.0):
+        super().__init__()
+
+        # Map input from size 4 (input_size) to size 64 (embed_size)
+        self.embedding = nn.Linear(input_size, embed_size)
+
+        # LSTM works in 64-dim space 
+        self.lstm = nn.LSTM(
+            embed_size,
+            hidden_size,
+            num_layers,
+            bias=True,
+            batch_first=True,
+            dropout = dropout ,
+            bidirectional=False
+        )
+
+        # Map LSTM outputs from size 64 (embed_size) to size 2 (input/output_size) again 
+        self.fc_out = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        x = self.embedding(x)        # (batch, seq, 64)
+        out, (hidden, cell) = self.lstm(x)    # (batch, seq, 64)
+        out = self.fc_out(out)       # (batch, seq, 2)
+
+        return out
+
+
+## we will not be using this for now :
 class GRUSeq2VecModel(nn.Module):
     def __init__(self, input_size, embed_size, hidden_size, output_size, num_layers=1, dropout=0.0):
         super().__init__()
