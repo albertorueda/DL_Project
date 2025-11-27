@@ -1,38 +1,53 @@
 import torch
 
 class HaversineLoss(torch.nn.Module):
-    def __init__(self, radius_earth_km=6371.0):
+    def __init__(self, 
+                 lat_min, lat_max,
+                 lon_min, lon_max,
+                 radius_earth_km=6371.0):
         super().__init__()
+        self.lat_min = lat_min
+        self.lat_max = lat_max
+        self.lon_min = lon_min
+        self.lon_max = lon_max
         self.radius_earth_km = radius_earth_km
 
     def forward(self, y_pred, y_true):
         """
         Args:
-            y_pred: (batch, seq, 2) lat/lon in radians
-            y_true: (batch, seq, 2) lat/lon in radians
+            y_pred: (batch, seq, 2) lat/lon normalizados [0,1]
+            y_true: (batch, seq, 2) lat/lon normalizados [0,1]
         """
-        lat1 = y_true[..., 0]
-        lon1 = y_true[..., 1]
-        lat2 = y_pred[..., 0]
-        lon2 = y_pred[..., 1]
 
+        # --- DESNORMALIZAR ---
+        lat_true = y_true[..., 0] * (self.lat_max - self.lat_min) + self.lat_min
+        lon_true = y_true[..., 1] * (self.lon_max - self.lon_min) + self.lon_min
+
+        lat_pred = y_pred[..., 0] * (self.lat_max - self.lat_min) + self.lat_min
+        lon_pred = y_pred[..., 1] * (self.lon_max - self.lon_min) + self.lon_min
+
+        # --- PASAR A RADIANES ---
+        lat1 = torch.deg2rad(lat_true)
+        lon1 = torch.deg2rad(lon_true)
+        lat2 = torch.deg2rad(lat_pred)
+        lon2 = torch.deg2rad(lon_pred)
+
+        # --- HAVERSINE ---
         dlat = lat2 - lat1
         dlon = lon2 - lon1
 
-        a = (
-            torch.sin(dlat / 2) ** 2 +
-            torch.cos(lat1) * torch.cos(lat2) *
-            torch.sin(dlon / 2) ** 2
-        )
+        a = (torch.sin(dlat / 2) ** 2 +
+             torch.cos(lat1) * torch.cos(lat2) *
+             torch.sin(dlon / 2) ** 2)
 
-        # Stabilize
         a = torch.clamp(a, 0.0, 1.0)
         eps = 1e-9
 
         c = 2 * torch.atan2(torch.sqrt(a + eps), torch.sqrt(1 - a + eps))
+        distance = self.radius_earth_km * c  # => km
 
-        distance = self.radius_earth_km * c
         return torch.mean(distance)
+
 
 
 
