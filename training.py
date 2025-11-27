@@ -30,7 +30,7 @@ if __name__ == "__main__":
     for nl in num_layers:
         for es in embedding_sizes:
             for hs in hidden_size:
-                print(f"Training with num_layers={nl}, embedding_size={es}, hidden_size={hs}, first_linear={fl}")
+                print(f"Training with num_layers={nl}, embedding_size={es}, hidden_size={hs}")
                 model = GRUModel(input_size=5, embed_size=es, hidden_size=hs, output_size=2, num_layers=nl, dropout=0.2).to(device)
 
                 # Define optimizer and loss function
