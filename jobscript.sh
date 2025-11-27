@@ -11,8 +11,6 @@
 # for this job. 
 #BSUB -R "rusage[mem=4GB]"
 
-#BSUB -R "select[sxm2]"
-
 # -- Notify me by email when execution begins --
 #BSUB -B
 # -- Notify me by email when execution ends   --
