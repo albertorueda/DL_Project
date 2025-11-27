@@ -85,9 +85,9 @@ if __name__ == "__main__":
                             break
 
                     # Save the trained model
-                    training_losses[f'gru_model_{nl}_{es}_{hs}'] = train_loss_model
-                    validation_losses[f'gru_model_{nl}_{es}_{hs}'] = best_val_loss
-                    torch.save(model.state_dict(), f'results/models/gru_model_{nl}_{es}_{hs}.pth')
+                    training_losses[f'gru_haversine_model_{nl}_{es}_{hs}'] = train_loss_model
+                    validation_losses[f'gru_haversine_model_{nl}_{es}_{hs}'] = best_val_loss
+                    torch.save(model.state_dict(), f'results/models/gru_haversine_model_{nl}_{es}_{hs}.pth')
                         
     # Write in a json file the training and validation losses
     import json

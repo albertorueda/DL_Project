@@ -25,3 +25,10 @@
 
 - **README.md**  
   - Current documentation file (this one).
+
+- **jobscript.sh**
+  - Script to run the batch jobs. 
+  - Commando to run: `bsub < jobscript.sh` once logged in in the cluster.
+  - Once finished the job:
+    - It creates a json file in the folder `results` containing all the losses of all the models.
+    - It saves each model with name: `<model>_<loss>_model_<number_layers>_<embbed_size>_<hidden_size>.pth` (model and loss should be changed in the `training.py` file)
