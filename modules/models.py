@@ -9,6 +9,7 @@ output_size = 2
 class GRUModel(nn.Module):
     def __init__(self, input_size, embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
         super().__init__()
+        self.first_linear = first_linear
 
         if first_linear:
             # Map input from size 5 (input_size) to size 64 (embed_size)
@@ -39,7 +40,8 @@ class GRUModel(nn.Module):
         self.fc_out = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        x = self.embedding(x)        # (batch, seq, 64)
+        if self.first_linear:
+            x = self.embedding(x)        # (batch, seq, 64)
         out, hidden = self.gru(x)    # (batch, seq, 64)
         out = self.fc_out(out)       # (batch, seq, 2)
 

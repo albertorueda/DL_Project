@@ -2,6 +2,7 @@ from modules.models import GRUModel
 import torch
 from modules.dataset import AISDataset  
 import pandas as pd
+from modules.losses import HaversineLoss
 
 def decode_predictions(predictions, lat_min, lat_max, lon_min, lon_max):
     """Decode normalized predictions back to original latitude and longitude."""
@@ -20,8 +21,8 @@ if __name__ == "__main__":
     
     # Load the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = GRUModel(input_size=4, embed_size=64, hidden_size=64, output_size=2, num_layers=2, dropout=0.2).to(device)
-    model.load_state_dict(torch.load('gru_model.pth', map_location=device))
+    model = GRUModel(input_size=5, embed_size=32, hidden_size=32, output_size=2, num_layers=2, dropout=0.2, first_linear=False).to(device)
+    model.load_state_dict(torch.load('results/models/gru_model_2_32_32_False.pth', map_location=device))
     
     # Load test dataset
     testset = AISDataset('datasplits/test.csv', seq_input_length=3, seq_output_length=3)
@@ -29,7 +30,7 @@ if __name__ == "__main__":
     
     model.eval()
     total_loss = 0
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = HaversineLoss()
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
