@@ -36,9 +36,9 @@ if __name__ == "__main__":
                 # Define optimizer and loss function
                 lr = 0.00005
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-                train_loss = HaversineLoss(trainset.lat_min, trainset.lat_max,
+                train_loss_fn = HaversineLoss(trainset.lat_min, trainset.lat_max,
                                            trainset.lon_min, trainset.lon_max)
-                val_loss = HaversineLoss(valset.lat_min, valset.lat_max,
+                val_loss_fn = HaversineLoss(valset.lat_min, valset.lat_max,
                                          valset.lon_min, valset.lon_max)
 
                 # Training loop
@@ -55,7 +55,7 @@ if __name__ == "__main__":
                         data, target = data.to(device), target.to(device)
                         optimizer.zero_grad()
                         output = model(data)
-                        l = train_loss(output, target)
+                        l = train_loss_fn(output, target)
                         l.backward()
                         optimizer.step()
                         train_loss += l.item()
@@ -70,7 +70,7 @@ if __name__ == "__main__":
                         for data, target in val_loader:
                             data, target = data.to(device), target.to(device)
                             output = model(data)
-                            batch_loss = val_loss(output, target).item()
+                            batch_loss = val_loss_fn(output, target).item()
                             val_loss += batch_loss
 
                     val_loss /= len(val_loader)

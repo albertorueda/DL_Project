@@ -4,12 +4,14 @@
 # -- our name ---
 #BSUB -J GRU_Haversine_Training 
 # -- choose queue --
-#BSUB -q hpc
+#BSUB -q gpul40s
 
 # -- specify that we need 4GB of memory per core/slot --
 # so when asking for 4 cores, we are really asking for 4*4GB=16GB of memory 
 # for this job. 
 #BSUB -R "rusage[mem=4GB]"
+
+#BSUB -R "select[sxm2]"
 
 # -- Notify me by email when execution begins --
 #BSUB -B
@@ -28,7 +30,7 @@
 #BSUB -e Output_%J.err
 
 # -- estimated wall clock time (execution time): hh:mm -- 
-#BSUB -W 24:00 
+#BSUB -W 00:30 
 
 # -- Number of cores requested -- 
 #BSUB -n 1 
