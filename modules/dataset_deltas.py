@@ -14,7 +14,7 @@ class AISDataset(Dataset):
         if 'Timestamp' in self.dataframe.columns:
             self.dataframe['Timestamp'] = pd.to_datetime(self.dataframe['Timestamp'])
             self.dataframe = self.dataframe.sort_values(by=['MMSI', 'Timestamp']).reset_index(drop=True)
-        
+
         self.seq_input_length = seq_input_length
         self.seq_output_length = seq_output_length
         self.valid_idxs = []
@@ -80,9 +80,23 @@ class AISDataset(Dataset):
         # Concatenate: Lat, Lon, SOG, Sin, Cos
         x = torch.cat((x_tensor, cog_sin.unsqueeze(-1), cog_cos.unsqueeze(-1)), dim=-1)
 
-        # y labels
-        y_data = self.dataframe.iloc[real_idx + self.seq_input_length: 
-                                     real_idx + self.seq_input_length + self.seq_output_length][['Latitude', 'Longitude']].to_numpy(dtype=float)
-        y = torch.tensor(y_data, dtype=torch.float32)
 
-        return x, y
+
+
+        y_pos = self.dataframe.iloc[real_idx + self.seq_input_length: 
+                                     real_idx + self.seq_input_length + self.seq_output_length][['Latitude', 'Longitude']].to_numpy(dtype=float)
+        y_pos = torch.tensor(y_pos, dtype=torch.float32)
+
+        # 2. Get the LAST KNOWN position from the input (Current Position)
+        # We need this to calculate the jump. 
+        # x_tensor shape is (seq_len, 3) -> [Lat, Lon, SOG]. We take the last step's Lat/Lon.
+        last_known_pos = x_tensor[-1, 0:2] # Shape (2,)
+
+        # 3. Calculate the OFFSET (Delta)
+        # How much does the ship move from the last known point?
+        # Note: If predicting a sequence > 1, this calculates the offset of the whole sequence relative to the start.
+        # A simpler way for GRUs is to predict the offset step-by-step, but let's try this simple offset first:
+        # We subtract the last known position from the future positions.
+        y_delta = y_pos - last_known_pos 
+
+        return x, y_delta  # <--- RETURN DELTA, NOT ABSOLUTE POS
