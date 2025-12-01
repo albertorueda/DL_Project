@@ -9,7 +9,7 @@ import folium
 
 # FLAGS: Choose model type and loss function
 MODEL_TYPE = "LSTM"  # Options: "LSTM", "GRU"
-LOSS_TYPE = "HAVERSINE"  # Options: "HAVERSINE", "HYBRID"
+LOSS_TYPE = "HAVERSINE"  # Options: "HAVERSINE", "MAE", "HYBRID"
 
 sequence_input_length = 5
 sequence_output_length = 5
@@ -71,6 +71,8 @@ for nl in num_layers_list:
             if LOSS_TYPE == "HAVERSINE":
                 from modules.losses import HaversineLoss
                 criterion = HaversineLoss(lat_min, lat_max, lon_min, lon_max).to(device)
+            elif LOSS_TYPE == "MAE":
+                criterion = torch.nn.L1Loss()
             elif LOSS_TYPE == "HYBRID":
                 from modules.losses import HybridTrajectoryLoss
                 criterion = HybridTrajectoryLoss().to(device)
