@@ -17,8 +17,11 @@ if __name__ == "__main__":
     batch_size = 64 
     dropout_num = 0.2 #FOR THE DROPOUT LAYER IN THE MODEL
     lr = 0.00001 #LEARNING RATE FOR ADAM OPTIMIZER
-    num_epochs = 2 #NUMBER OF EPOCHS TO TRAIN
+    num_epochs = 3 #NUMBER OF EPOCHS TO TRAIN
     patience = 3 #EARLY STOPPING PATIENCE
+    
+    #possible_losses = ['MAE', 'HAVERSINE', 'MSE']
+    type_of_loss = 'MAE' #CHOICE OF LOSS FUNCTION: 
 
     trainset = AISDataset('datasplits/train.csv', seq_input_length=sequence_input_length, seq_output_length=sequence_output_length)
     
@@ -63,10 +66,19 @@ if __name__ == "__main__":
                 #                            trainset.lon_min, trainset.lon_max)
                 # val_loss_fn = HaversineLoss(valset.lat_min, valset.lat_max,
                 #                          valset.lon_min, valset.lon_max)
-                train_loss_fn = torch.nn.L1Loss()
-                val_loss_fn = torch.nn.L1Loss()
-                train_loss_fn = torch.nn.MSELoss()
-                val_loss_fn = torch.nn.MSELoss()
+                
+
+
+                if type_of_loss == 'HAVERSINE': #currently has to be developed further to work with normalized coordinates
+                    train_loss_fn = HaversineLoss()
+                    val_loss_fn = HaversineLoss()
+                elif type_of_loss == 'MAE':
+                    train_loss_fn = torch.nn.L1Loss()
+                    val_loss_fn = torch.nn.L1Loss()
+                elif type_of_loss == 'MSE':
+                    train_loss_fn = torch.nn.MSELoss()
+                    val_loss_fn = torch.nn.MSELoss()
+
 
                 # Training loop
                 best_val_loss = float('inf')
@@ -123,25 +135,26 @@ if __name__ == "__main__":
                             break
 
                     # Save the trained model
-                    training_losses[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_loss_model
-                    validation_losses[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = best_val_loss
-                    early_stopping_epochs[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = epoch + 1 - patience_counter
-                    # torch.save(model.state_dict(), f'results/models/gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.pth')
-                    torch.save(model.state_dict(), f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.pth')
-                train_losses_i[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_losses_list
-                val_losses_i[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = val_losses_list
+                    training_losses[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_loss_model
+                    validation_losses[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = best_val_loss
+                    early_stopping_epochs[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = epoch + 1 - patience_counter
+                    # torch.save(model.state_dict(), f'results/models/gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.pth')
+                    torch.save(model.state_dict(), f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.pth')
+                
+                train_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_losses_list
+                val_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = val_losses_list
 
                 # Graph training and validation loss
                 plt.figure(figsize=(10, 5))
-                plt.plot(range(1, len(train_losses_i[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), train_losses_i[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Training Loss')
-                plt.plot(range(1, len(val_losses_i[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), val_losses_i[f'gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Validation Loss')
+                plt.plot(range(1, len(train_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), train_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Training Loss')
+                plt.plot(range(1, len(val_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), val_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Validation Loss')
                 plt.xlabel('Epoch')
                 plt.ylabel('Loss')
                 plt.title(f'Training and Validation Loss Over Epochs \n (Layers={nl}, Embed Size={es}, Hidden Size={hs}, Dropout={dropout_num}, Input Length={sequence_input_length}, Epochs={num_epochs})')
                 plt.legend()
                 plt.show()
-                plt.savefig(f'results/epochs_graphs/loss_graph {nl} layer, embed_size = {es}, hiden size =  {hs}, dropout = {dropout_num}, input_length = {sequence_input_length}, epochs = {num_epochs}.png')
-                print(f"Graph saved as 'loss_graph {nl} layer, embed_size = {es}, hiden size =  {hs}, dropout = {dropout_num}, input_length = {sequence_input_length}, epochs = {num_epochs}.png'")
+                plt.savefig(f'results/epochs_graphs/{type_of_loss}: loss_graph {nl} layer, embed_size = {es}, hiden size =  {hs}, dropout = {dropout_num}, input_length = {sequence_input_length}, epochs = {num_epochs}.png')
+                print(f"Graph saved as '{type_of_loss} loss_graph {nl} layer, embed_size = {es}, hiden size =  {hs}, dropout = {dropout_num}, input_length = {sequence_input_length}, epochs = {num_epochs}.png'")
 
 
 
@@ -221,7 +234,7 @@ if __name__ == "__main__":
                     folium.PolyLine(connected_pred, color=color, weight=3, opacity=1, dash_array='10', tooltip=f"{boat_id} Pred").add_to(m)
 
                 # 4. Save Map with Unique Name
-                map_filename = f"results/maps/gru_MAE_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.html"
+                map_filename = f"results/maps/gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.html"
                 m.save(map_filename)
                 print(f"Map saved as '{map_filename}'")
 
@@ -240,7 +253,7 @@ if __name__ == "__main__":
 
     print("Final Losses:", losses)
     
-    with open('results/losses.json', 'w') as f:
+    with open(f'results/losses_{type_of_loss}.json', 'w') as f:
         json.dump(losses, f)
 
     # Graph training and validation loss
