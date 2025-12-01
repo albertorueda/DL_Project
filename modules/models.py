@@ -53,8 +53,9 @@ class GRUModel(nn.Module):
 class LSTMModel(nn.Module):
     def __init__(self, input_size, embed_size, hidden_size, output_size, num_layers=1, dropout=0.0, first_linear=True):
         super().__init__()
+        self.first_linear = first_linear
 
-        if first_linear:
+        if self.first_linear:
             # Map input from size 5 (input_size) to size 64 (embed_size)
             self.embedding = nn.Linear(input_size, embed_size)
 
@@ -85,7 +86,8 @@ class LSTMModel(nn.Module):
         self.fc_out = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        x = self.embedding(x)        # (batch, seq, 64)
+        if self.first_linear:
+            x = self.embedding(x)        # (batch, seq, 64)
         out, (hidden, cell) = self.lstm(x)    # (batch, seq, 64)
         out = self.fc_out(out)       # (batch, seq, 2)
 
@@ -120,4 +122,3 @@ class GRUSeq2VecModel(nn.Module):
         out = self.fc_out(hidden[-1]) # Take the last layer's hidden state and map to output size
 
         return out
-
