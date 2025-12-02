@@ -16,8 +16,8 @@ sequence_output_length = 5
 batch_size = 64
 dropout_num = 0.2
 lr = 0.00001
-num_epochs = 10
-patience = 3
+num_epochs = 100
+patience = 5
 
 num_layers_list = [2, 4, 8]
 embedding_sizes = [64, 128]

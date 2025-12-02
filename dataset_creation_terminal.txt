@@ -1,0 +1,113 @@
+Scanning raw data folder for AIS CSV files...
+
+=== Processing file: aisdk-2025-09-01.csv ===
+[INFO] Loaded raw CSV: 22597269 rows.
+[INFO] Removed 61852 rows outside bounding box.
+[INFO] Removed 1637411 rows not matching valid vessel types.
+[INFO] Removed 81692 rows failing MMSI length validation.
+[INFO] Removed 102922 rows failing MMSI MID range validation.
+[INFO] Removed 0 rows with invalid timestamps.
+[INFO] Removed 9608268 duplicate rows.
+[INFO] Removed 2 rows with zero coordinates.
+[INFO] Removed 37207 rows with SOG >= 30 m/s.
+[INFO] Removed 0 rows before year 2015.
+[INFO] Dataframe after basic cleaning has 11067915 rows and 5666 unique MMSIs.
+[INFO] Removed 2996044 rows by track filtering.
+[INFO] Removed 191347 rows by segment track filtering.
+[INFO] Removed 0 rows from segments shorter than 10 rows.
+[INFO] Dataframe after track filtering and segmentation has 7880524 rows and 2123 unique MMSIs.
+[INFO] Interpolating dataset at 10-minute intervals using pandas.resample...
+[INFO] Linear interpolated rows: 195604
+[INFO] Circular interpolated rows: 195604
+[INFO] Interpolated dataset now has 186323 rows (removed 9281 rows with missing critical values).
+[INFO] Final dataset stats:
+  - Total rows: 186323
+  - Unique MMSIs: 2123
+  - Time span: 2025-09-01 00:00:00 to 2025-09-01 23:50:00
+[INFO] All metrics saved to folder: metrics/aisdk-2025-09-01
+Splitting into train/val/test...
+Saved: train_aisdk-2025-09-01.csv, val_aisdk-2025-09-01.csv, test_aisdk-2025-09-01.csv
+
+=== Processing file: aisdk-2025-03-01.csv ===
+[INFO] Loaded raw CSV: 18977895 rows.
+[INFO] Removed 109078 rows outside bounding box.
+[INFO] Removed 1324618 rows not matching valid vessel types.
+[INFO] Removed 25806 rows failing MMSI length validation.
+[INFO] Removed 90458 rows failing MMSI MID range validation.
+[INFO] Removed 0 rows with invalid timestamps.
+[INFO] Removed 7643821 duplicate rows.
+[INFO] Removed 3 rows with zero coordinates.
+[INFO] Removed 28895 rows with SOG >= 30 m/s.
+[INFO] Removed 0 rows before year 2015.
+[INFO] Dataframe after basic cleaning has 9755216 rows and 3299 unique MMSIs.
+[INFO] Removed 3126740 rows by track filtering.
+[INFO] Removed 158275 rows by segment track filtering.
+[INFO] Removed 0 rows from segments shorter than 10 rows.
+[INFO] Dataframe after track filtering and segmentation has 6470201 rows and 1287 unique MMSIs.
+[INFO] Interpolating dataset at 10-minute intervals using pandas.resample...
+[INFO] Linear interpolated rows: 124004
+[INFO] Circular interpolated rows: 124004
+[INFO] Interpolated dataset now has 122108 rows (removed 1896 rows with missing critical values).
+[INFO] Final dataset stats:
+  - Total rows: 122108
+  - Unique MMSIs: 1286
+  - Time span: 2025-03-01 00:00:00 to 2025-03-01 23:50:00
+[INFO] All metrics saved to folder: metrics/aisdk-2025-03-01
+Splitting into train/val/test...
+Saved: train_aisdk-2025-03-01.csv, val_aisdk-2025-03-01.csv, test_aisdk-2025-03-01.csv
+
+=== Processing file: aisdk-2025-11-29.csv ===
+[INFO] Loaded raw CSV: 16094461 rows.
+[INFO] Removed 22771 rows outside bounding box.
+[INFO] Removed 1190306 rows not matching valid vessel types.
+[INFO] Removed 63561 rows failing MMSI length validation.
+[INFO] Removed 44736 rows failing MMSI MID range validation.
+[INFO] Removed 0 rows with invalid timestamps.
+[INFO] Removed 5459726 duplicate rows.
+[INFO] Removed 0 rows with zero coordinates.
+[INFO] Removed 40573 rows with SOG >= 30 m/s.
+[INFO] Removed 0 rows before year 2015.
+[INFO] Dataframe after basic cleaning has 9272788 rows and 2821 unique MMSIs.
+[INFO] Removed 3768997 rows by track filtering.
+[INFO] Removed 50226 rows by segment track filtering.
+[INFO] Removed 0 rows from segments shorter than 10 rows.
+[INFO] Dataframe after track filtering and segmentation has 5453565 rows and 1013 unique MMSIs.
+[INFO] Interpolating dataset at 10-minute intervals using pandas.resample...
+[INFO] Linear interpolated rows: 102982
+[INFO] Circular interpolated rows: 102982
+[INFO] Interpolated dataset now has 101953 rows (removed 1029 rows with missing critical values).
+[INFO] Final dataset stats:
+  - Total rows: 101953
+  - Unique MMSIs: 1013
+  - Time span: 2025-11-29 00:00:00 to 2025-11-29 23:50:00
+[INFO] All metrics saved to folder: metrics/aisdk-2025-11-29
+Splitting into train/val/test...
+Saved: train_aisdk-2025-11-29.csv, val_aisdk-2025-11-29.csv, test_aisdk-2025-11-29.csv
+
+=== Processing file: aisdk-2025-06-01.csv ===
+[INFO] Loaded raw CSV: 20958877 rows.
+[INFO] Removed 29059 rows outside bounding box.
+[INFO] Removed 1451475 rows not matching valid vessel types.
+[INFO] Removed 74806 rows failing MMSI length validation.
+[INFO] Removed 31603 rows failing MMSI MID range validation.
+[INFO] Removed 0 rows with invalid timestamps.
+[INFO] Removed 7998069 duplicate rows.
+[INFO] Removed 0 rows with zero coordinates.
+[INFO] Removed 49314 rows with SOG >= 30 m/s.
+[INFO] Removed 0 rows before year 2015.
+[INFO] Dataframe after basic cleaning has 11324551 rows and 6934 unique MMSIs.
+[INFO] Removed 2865579 rows by track filtering.
+[INFO] Removed 265696 rows by segment track filtering.
+[INFO] Removed 0 rows from segments shorter than 10 rows.
+[INFO] Dataframe after track filtering and segmentation has 8193276 rows and 2673 unique MMSIs.
+[INFO] Interpolating dataset at 10-minute intervals using pandas.resample...
+[INFO] Linear interpolated rows: 220252
+[INFO] Circular interpolated rows: 220252
+[INFO] Interpolated dataset now has 205469 rows (removed 14783 rows with missing critical values).
+[INFO] Final dataset stats:
+  - Total rows: 205469
+  - Unique MMSIs: 2672
+  - Time span: 2025-06-01 00:00:00 to 2025-06-01 23:50:00
+[INFO] All metrics saved to folder: metrics/aisdk-2025-06-01
+Splitting into train/val/test...
+Saved: train_aisdk-2025-06-01.csv, val_aisdk-2025-06-01.csv, test_aisdk-2025-06-01.csv
