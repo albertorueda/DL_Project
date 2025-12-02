@@ -2,7 +2,7 @@
 # embedded options to bsub - start with #BSUB
 
 # -- our name ---
-#BSUB -J GRU_Haversine_Training 
+#BSUB -J hav_gru_partial
 # -- choose queue --
 #BSUB -q gpul40s
 
@@ -28,17 +28,17 @@
 #BSUB -e Output_%J.err
 
 # -- estimated wall clock time (execution time): hh:mm -- 
-#BSUB -W 00:30 
+#BSUB -W 6:00 
 
 # -- Number of cores requested -- 
-#BSUB -n 1 
+#BSUB -n 4
 
 # -- Specify the distribution of the cores: on a single node --
 #BSUB -R "span[hosts=1]"
 
 # -- end of LSF options -- 
-#BSUB -o output/training_gru_haversine%J.out
-#BSUB -e output/training_gru_haversine%J.err
+#BSUB -o output/big_loop_training%J.out
+#BSUB -e output/big_loop_training%J.err
 
 source dl_project/bin/activate
-python3 training.py
+python3 training_big_loop.py

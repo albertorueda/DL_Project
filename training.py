@@ -3,13 +3,12 @@ from torch import dropout
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
 # from modules.dataset_deltas import AISDataset --- IGNORE ---
-from modules.models import GRUModel
+from modules.models import GRUModel, LSTMModel
 import matplotlib.pyplot as plt
 from modules.losses import HaversineLoss
 from tqdm import tqdm
 
 if __name__ == "__main__":
-
 
     #GLOBAL HYPERPARAMETERS
     sequence_input_length = 5
@@ -17,8 +16,8 @@ if __name__ == "__main__":
     batch_size = 64 
     dropout_num = 0.2 #FOR THE DROPOUT LAYER IN THE MODEL
     lr = 0.00001 #LEARNING RATE FOR ADAM OPTIMIZER
-    num_epochs = 3 #NUMBER OF EPOCHS TO TRAIN
-    patience = 3 #EARLY STOPPING PATIENCE
+    num_epochs = 10 #NUMBER OF EPOCHS TO TRAIN
+    patience = 5 #EARLY STOPPING PATIENCE
     
     #possible_losses = ['MAE', 'HAVERSINE', 'MSE']
     type_of_loss = 'MAE' #CHOICE OF LOSS FUNCTION: 
@@ -30,11 +29,15 @@ if __name__ == "__main__":
     
     # 3. Pass stats to Validation Set
     valset = AISDataset('datasplits/val.csv', seq_input_length=sequence_input_length, seq_output_length=sequence_output_length, stats=train_stats)
+    
     # Create data loaders
-
-
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=True, num_workers=4)
+    
+    lat_min = min(trainset.lat_min, valset.lat_min)
+    lat_max = max(trainset.lat_max, valset.lat_max)
+    lon_min = min(trainset.lon_min, valset.lon_min)
+    lon_max = max(trainset.lon_max, valset.lon_max)
 
     print(f"Number of training batches: {len(train_loader)}")
     print(f"Number of validation batches: {len(val_loader)}")
@@ -57,28 +60,16 @@ if __name__ == "__main__":
         for es in embedding_sizes:
             for hs in hidden_size:
                 print(f"Training with num_layers={nl}, embedding_size={es}, hidden_size={hs}, batch_seize={batch_size}, dropout={dropout_num}")
-                model = GRUModel(input_size=5, embed_size=es, hidden_size=hs, output_size=2, num_layers=nl, dropout=dropout_num).to(device)
+                model = LSTMModel(input_size=5, embed_size=es, hidden_size=hs, output_size=2, num_layers=nl, dropout=dropout_num).to(device)
 
                 # Define optimizer and loss function
-                
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-                # train_loss_fn = HaversineLoss(trainset.lat_min, trainset.lat_max,
-                #                            trainset.lon_min, trainset.lon_max)
-                # val_loss_fn = HaversineLoss(valset.lat_min, valset.lat_max,
-                #                          valset.lon_min, valset.lon_max)
-                
-
-
-                if type_of_loss == 'HAVERSINE': #currently has to be developed further to work with normalized coordinates
-                    train_loss_fn = HaversineLoss()
-                    val_loss_fn = HaversineLoss()
+                if type_of_loss == 'HAVERSINE': 
+                    loss_fn = HaversineLoss(lat_min, lat_max, lon_min, lon_max)
                 elif type_of_loss == 'MAE':
-                    train_loss_fn = torch.nn.L1Loss()
-                    val_loss_fn = torch.nn.L1Loss()
+                    loss_fn = torch.nn.L1Loss()
                 elif type_of_loss == 'MSE':
-                    train_loss_fn = torch.nn.MSELoss()
-                    val_loss_fn = torch.nn.MSELoss()
-
+                    loss_fn = torch.nn.MSELoss()
 
                 # Training loop
                 best_val_loss = float('inf')
@@ -97,7 +88,7 @@ if __name__ == "__main__":
                         data, target = data.to(device), target.to(device)
                         optimizer.zero_grad()
                         output = model(data)
-                        l = train_loss_fn(output, target)
+                        l = loss_fn(output, target)
                         l.backward()
                         optimizer.step()
                         train_loss += l.item()
@@ -115,7 +106,7 @@ if __name__ == "__main__":
                         for data, target in val_bar:
                             data, target = data.to(device), target.to(device)
                             output = model(data)
-                            batch_loss = val_loss_fn(output, target).item()
+                            batch_loss = loss_fn(output, target).item()
                             val_loss += batch_loss
                             val_bar.set_postfix(loss=batch_loss)
 
@@ -135,19 +126,19 @@ if __name__ == "__main__":
                             break
 
                     # Save the trained model
-                    training_losses[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_loss_model
-                    validation_losses[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = best_val_loss
-                    early_stopping_epochs[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = epoch + 1 - patience_counter
+                    training_losses[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_loss_model
+                    validation_losses[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = best_val_loss
+                    early_stopping_epochs[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = epoch + 1 - patience_counter
                     # torch.save(model.state_dict(), f'results/models/gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.pth')
-                    torch.save(model.state_dict(), f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.pth')
+                    torch.save(model.state_dict(), f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout.pth')
                 
-                train_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_losses_list
-                val_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = val_losses_list
+                train_losses_i[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = train_losses_list
+                val_losses_i[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'] = val_losses_list
 
                 # Graph training and validation loss
                 plt.figure(figsize=(10, 5))
-                plt.plot(range(1, len(train_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), train_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Training Loss')
-                plt.plot(range(1, len(val_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), val_losses_i[f'gru_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Validation Loss')
+                plt.plot(range(1, len(train_losses_i[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), train_losses_i[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Training Loss')
+                plt.plot(range(1, len(val_losses_i[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout']) + 1), val_losses_i[f'lstm_{type_of_loss}_model_{nl}layers_{es}embSize_{hs}hiddSize_{batch_size}batch_{dropout_num}dropout'], label='Validation Loss')
                 plt.xlabel('Epoch')
                 plt.ylabel('Loss')
                 plt.title(f'Training and Validation Loss Over Epochs \n (Layers={nl}, Embed Size={es}, Hidden Size={hs}, Dropout={dropout_num}, Input Length={sequence_input_length}, Epochs={num_epochs})')
@@ -155,7 +146,6 @@ if __name__ == "__main__":
                 plt.show()
                 plt.savefig(f'results/epochs_graphs/{type_of_loss}: loss_graph {nl} layer, embed_size = {es}, hiden size =  {hs}, dropout = {dropout_num}, input_length = {sequence_input_length}, epochs = {num_epochs}.png')
                 print(f"Graph saved as '{type_of_loss} loss_graph {nl} layer, embed_size = {es}, hiden size =  {hs}, dropout = {dropout_num}, input_length = {sequence_input_length}, epochs = {num_epochs}.png'")
-
 
 
                 # ==========================================
@@ -222,15 +212,15 @@ if __name__ == "__main__":
 
                     # --- D. DRAW ---
                     # 1. History
-                    folium.PolyLine(hist_real, color=color, weight=3, opacity=0.5, tooltip=f"{boat_id} History").add_to(m)
-                    folium.CircleMarker(location=hist_real[-1], radius=4, color='black', fill=True).add_to(m)
+                    #folium.PolyLine(hist_real, color=color, weight=3, opacity=0.5, tooltip=f"{boat_id} History").add_to(m)
+                    folium.CircleMarker(location=hist_real, radius=8, color=color, fill=True).add_to(m)
 
                     # 2. Actual Future (Solid)
                     folium.PolyLine(true_real, color=color, weight=4, opacity=0.9, tooltip=f"{boat_id} Actual").add_to(m)
 
                     # 3. Predicted Future (Dashed & Connected)
                     # We connect the anchor to the first prediction point for visual continuity
-                    connected_pred = [hist_real[-1]] + pred_real
+                    connected_pred = [hist_real] + pred_real
                     folium.PolyLine(connected_pred, color=color, weight=3, opacity=1, dash_array='10', tooltip=f"{boat_id} Pred").add_to(m)
 
                 # 4. Save Map with Unique Name
