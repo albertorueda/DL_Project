@@ -23,24 +23,27 @@ if __name__ == "__main__":
     lat_max = max(train_df['Latitude'].max(), val_df['Latitude'].max())
     lon_min = min(train_df['Longitude'].min(), val_df['Longitude'].min())
     lon_max = max(train_df['Longitude'].max(), val_df['Longitude'].max())
+    sog_max = max(train_df['SOG'].max(), val_df['SOG'].max())
 
     # --------------------------------------------
     # Load model (ensure same architecture as training)
+    # - Model 1: LSTM with Haversine Loss -- 2 layers, 256 hidden, 64 embed
+    # - Model 2: GRU with MAE Loss -- 2 layers, 256 hidden, 64 embed
     # --------------------------------------------
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
 
-    model = GRUModel(
+    model = LSTMModel( #GRUModel(
         input_size=5,
-        embed_size=32,
-        hidden_size=32,
+        embed_size=64,
+        hidden_size=256,
         output_size=2,
         num_layers=2,
-        dropout=0.2,
-        first_linear=True   # ensure matches training!
+        dropout=0.1,
     ).to(device)
 
     model.load_state_dict(torch.load('results/models/hav_final_model.pth', map_location=device))
+    #model.load_state_dict(torch.load('results/models/mae_final_model.pth', map_location=device))
 
     # --------------------------------------------
     # Load test dataset (use train normalization stats)
@@ -49,7 +52,7 @@ if __name__ == "__main__":
         'datasplits/test.csv',
         seq_input_length=3,
         seq_output_length=3,
-        stats=(lat_min, lat_max, lon_min, lon_max)
+        stats=(lat_min, lat_max, lon_min, lon_max, sog_max)
     )
 
     test_loader = torch.utils.data.DataLoader(
