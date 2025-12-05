@@ -100,5 +100,9 @@ This includes:
 
 
 ## Authors
-
+Pablo Baurier (s253159), <br>
+Cecilia Biondini (s251965), <br>
+Layla Doumont (s253007), <br>
+Ignacio Ripoll (s242875), <br>
+Alberto Rueda (s253057)
  
