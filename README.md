@@ -18,16 +18,17 @@ DL_Project/
   │     └── models.py             # GRU/LSTM models in PyTorch  
   │     └── metrics.py            # Metrics for the evaluation
   ├── training/  
-  │     └── training_big_loop.py           # Main training loop
-  │     └── finetuning_loop_batch_size.py  # Main training loop  
-  │     └── finetuning_loop_dropout.py     # Main training loop  
-  │     └── finetuning_loop_window_size.py # Main training loop  
-  │     └── training_final_model.py        # Main training loop  
-  │     └── training_more_data.py          # Main training loop  
+  │     └── training_parameters.py         # Main training loop for training parameters
+  │     └── finetuning_loop_batch_size.py  # Training loop for finetuning batch size 
+  │     └── finetuning_loop_dropout.py     # Training loop for finetuning drop out rate
+  │     └── finetuning_loop_window_size.py # Training loop for finetuning window size
+  │     └── training_final_model.py        # Training loop for final parameters
+  │     └── training_final_model_more_days.py    # Training loop for final parameters, and a larger dataset
   ├── evaluation/  
-        └── evaluate.py           # Evaluation script (template)  
-  ├── results/                    # Model checkpoints + training logs  
-  ├── final-notebook.ipynb        # Example end-to-end notebook  
+        └── evaluate.py           # Evaluation of the last model with 1 day of data 
+        └── evaluate_more_data.py # Evaluation of the last model with 4 days of data
+  ├── results/                    # Folder for all results
+  ├── final-notebook.ipynb        # User-friendly end-to-end notebook  
   ├── jobscript.sh                # Cluster batch script  
   ├── requirements.txt            # Python dependencies  
   └── README.md                   # This file  
