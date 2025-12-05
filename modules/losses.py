@@ -5,8 +5,16 @@ Includes:
 - HaversineLoss: great-circle distance in kilometers between predicted and ground-truth coordinates (normalized inputs).
 - HybridTrajectoryLoss: combined loss with position, direction, and speed components (radian input).
 """
-import torch
 
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
+import torch
+import torch.nn.functional as F
+
+### ================================================================
+### --- HAVERSINE LOSS ---
+### ================================================================
 class HaversineLoss(torch.nn.Module):
     """
     Loss function computing the great-circle distance between predicted and true coordinates.
@@ -79,8 +87,9 @@ class HaversineLoss(torch.nn.Module):
         return torch.mean(distance)
 
 
-import torch.nn.functional as F
-
+### ================================================================
+### --- HYBRID TRAJECTORY LOSS ---
+### ================================================================
 class HybridTrajectoryLoss(torch.nn.Module):
     """
     Combined trajectory loss that accounts for position error, directional difference, and speed consistency.

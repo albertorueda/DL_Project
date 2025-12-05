@@ -6,11 +6,18 @@ It normalizes Latitude, Longitude, and SOG, and transforms COG into sin and cos 
 
 If provided, normalization statistics from a training set can be reused for validation/test sets.
 """
+
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
 import torch
 import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset
 
+### ================================================================
+### --- AISDataset CLASS ---
+### ================================================================
 class AISDataset(Dataset):
     """
     Custom PyTorch Dataset for AIS (Automatic Identification System) trajectory data.
@@ -77,6 +84,9 @@ class AISDataset(Dataset):
                 
 
 
+    ### ================================================================
+    ### --- PyTorch Dataset Required Methods ---
+    ### ================================================================
     def __len__(self):
         """
         Returns:
@@ -84,6 +94,9 @@ class AISDataset(Dataset):
         """
         return len(self.valid_idxs)
 
+    ### ================================================================
+    ### --- Input/Output Tensor Construction ---
+    ### ================================================================
     def __getitem__(self, idx):
         """
         Constructs one input-output pair from the AIS data.

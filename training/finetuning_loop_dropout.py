@@ -1,3 +1,6 @@
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
 """
 Finetuning experiment: GRU model with varying dropout rates.
 This script trains a GRU-based sequence model on AIS data using different dropout values.
@@ -11,10 +14,14 @@ Output:
 import torch
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
-from modules.models import GRUModel, LSTMModel
-from modules.losses import HaversineLoss
+from modules.models import GRUModel
+from torch.nn import L1Loss
 import os
 import json
+
+# ================================================================
+# --- MAIN EXECUTION ---
+# ================================================================
 
 if __name__ == "__main__":
     """
@@ -22,7 +29,9 @@ if __name__ == "__main__":
     Records best validation and training loss for each config using early stopping.
     """
 
-    # GLOBAL HYPERPARAMETERS
+    # ================================================================
+    # --- HYPERPARAMETERS AND SETUP ---
+    # ================================================================
     dropout_nums = [0.1, 0.2, 0.3, 0.4] # FOR THE DROPOUT LAYER IN THE MODEL
     lr = 0.00001 # LEARNING RATE FOR ADAM OPTIMIZER
     num_epochs = 1000 # NUMBER OF EPOCHS TO TRAIN
@@ -41,7 +50,7 @@ if __name__ == "__main__":
     # 3. Pass stats to Validation Set
     valset = AISDataset(os.path.join("datasplits", "val.csv"), seq_input_length=5, seq_output_length=5, stats=train_stats)
     
-    loss_fn = torch.nn.L1Loss()
+    loss_fn = L1Loss()
 
     train_loader = DataLoader(trainset, batch_size=64, shuffle=True, num_workers=1)
     val_loader = DataLoader(valset, batch_size=64, shuffle=True, num_workers=1)
@@ -53,6 +62,10 @@ if __name__ == "__main__":
         print(f"\n--- Training {dp} dropout ---")
         model = GRUModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=dp).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+        ### ================================================================
+        ### --- TRAINING LOOP ---
+        ### ================================================================
         
         # Training loop
         best_val_loss = float('inf')
@@ -107,6 +120,9 @@ if __name__ == "__main__":
         validation_loss_dict[f"dropout{dp}"] = best_val_loss
         train_loss_dict[f"dropout{dp}"] = train_loss_model
         
+    ### ================================================================
+    ### --- SAVE LOSSES ---
+    ### ================================================================
     # save validation and training loss dictionaries in a json file
     os.makedirs(os.path.join("results", "finetuning"), exist_ok=True)
     with open(os.path.join("results", "finetuning", "validation_loss_dropout.json"), 'w') as f:

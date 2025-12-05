@@ -2,19 +2,29 @@
 Fine-tuning loop to test different window sizes (input/output lengths) for sequence-to-sequence prediction models.
 Trains a GRU model with fixed hyperparameters across different window sizes and tracks training/validation losses.
 """
-import torch
+
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
 import os
 import json
+import torch
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
 from modules.models import GRUModel, LSTMModel  # Import available model architectures
 from modules.losses import HaversineLoss
 
+# ================================================================
+# --- MAIN EXECUTION ---
+# ================================================================
+
 if __name__ == "__main__":
 
     # Loop over different window sizes and train a model for each configuration
 
-    # GLOBAL HYPERPARAMETERS
+    # ================================================================
+    # --- HYPERPARAMETERS AND SETUP ---
+    # ================================================================
     window_sizes = [3, 5, 7]
     lr = 0.00001 # LEARNING RATE FOR ADAM OPTIMIZER
     num_epochs = 1000 # NUMBER OF EPOCHS TO TRAIN
@@ -52,7 +62,10 @@ if __name__ == "__main__":
         print(f"Number of training batches: {len(train_loader)}")
         print(f"Number of validation batches: {len(val_loader)}")
         
-        # Training loop
+        ### ================================================================
+        ### --- TRAINING LOOP ---
+        ### ================================================================
+
         best_val_loss = float('inf')
         patience_counter = 0
         train_losses_list = []
@@ -105,6 +118,10 @@ if __name__ == "__main__":
         validation_loss_dict[f"window_size{window_size}"] = best_val_loss
         train_loss_dict[f"window_size{window_size}"] = train_loss_model
         
+    ### ================================================================
+    ### --- SAVE LOSSES ---
+    ### ================================================================
+
     # Save best validation and training losses for each window size configuration to results folder
     with open(os.path.join('results', 'validation_loss_window_size.json'), 'w') as f:
         json.dump(validation_loss_dict, f)

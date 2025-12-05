@@ -1,12 +1,25 @@
 """
-Training script using multiple AISDK dates merged into a single training and validation set.
-Uses the Haversine or MAE loss. Trains an LSTM model on normalized data.
-Results are saved to results/models and results/more_days_hav.json.
+training_more_data.py
 
-Note:
-    This script expects all individual train/val CSVs to be located in 'datasplits/' and start with 'train_' or 'val_'.
-    Files like 'train.csv' and 'val.csv' are ignored.
+Trains an LSTM model using AIS data from multiple days merged together.
+Uses the Haversine or MAE loss function on normalized latitude and longitude.
+Results (trained model and loss curves) are saved under results/models/ and results/more_days_hav.json.
+
+Usage:
+    Run directly with `python training_more_data.py`.
+
+Assumes:
+    - Training/validation CSVs are placed in `datasplits/` folder.
+    - Files start with `train_` or `val_` and are pre-cleaned and normalized.
+
+Flags:
+    - Loss function: Haversine (default) or MAE.
+    - Model: LSTM with configurable architecture.
 """
+
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
 import os
 import json
 import pandas as pd
@@ -17,18 +30,24 @@ from modules.models import GRUModel, LSTMModel
 from modules.losses import HaversineLoss
 from tqdm import tqdm
 
+### ================================================================
+### --- TRAINING SCRIPT ENTRY POINT ---
+### ================================================================
 if __name__ == "__main__":
 
-    #GLOBAL HYPERPARAMETERS
+    # --- GLOBAL HYPERPARAMETERS ---
     sequence_input_length = 3
     sequence_output_length = 3
     batch_size = 32 
-    dropout_num = 0.1 #FOR THE DROPOUT LAYER IN THE MODEL
+    dropout_num = 0.1 # Dropout probability
     lr = 0.00001 #LEARNING RATE FOR ADAM OPTIMIZER
     num_epochs = 1000 #NUMBER OF EPOCHS TO TRAIN
     patience = 5 #EARLY STOPPING PATIENCE
 
-    # Open datasplits folder
+    ### ================================================================
+    ### --- LOAD AND CONCATENATE MULTI-DAY DATASETS ---
+    ### ================================================================
+    # Read datasplit folder and merge multi-day train/val files
     data_files = os.listdir('datasplits/')
     
     # Concat all the csv files from multiple days that start with 'train_'
@@ -53,6 +72,9 @@ if __name__ == "__main__":
             val_df = pd.concat([val_df, temp_df], ignore_index=True)
     valset = AISDataset(val_df, seq_input_length=sequence_input_length, seq_output_length=sequence_output_length, stats=train_stats)
     
+    ### ================================================================
+    ### --- SETUP DATA LOADERS ---
+    ### ================================================================
     # Create data loaders
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=True, num_workers=4)
@@ -65,6 +87,9 @@ if __name__ == "__main__":
     print(f"Number of training batches: {len(train_loader)}")
     print(f"Number of validation batches: {len(val_loader)}")
 
+    ### ================================================================
+    ### --- INITIALIZE MODEL AND LOSS FUNCTION ---
+    ### ================================================================
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
@@ -72,8 +97,6 @@ if __name__ == "__main__":
     training_losses = {}
     validation_losses = {}
     early_stopping_epochs = {}
-    val_losses_i = {}
-    train_losses_i = {}    
 
     model = LSTMModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.1, first_linear=False).to(device)
 
@@ -85,7 +108,9 @@ if __name__ == "__main__":
     elif type_of_loss == 'MAE':
         loss_fn = torch.nn.L1Loss()
 
-    # Training loop
+    ### ================================================================
+    ### --- TRAINING LOOP ---
+    ### ================================================================
     best_val_loss = float('inf')
     patience_counter = 0
     train_losses_list = []
@@ -139,6 +164,9 @@ if __name__ == "__main__":
                 print(f"Early stopping triggered at epoch {epoch+1}.")
                 break
     
+    ### ================================================================
+    ### --- SAVE RESULTS ---
+    ### ================================================================
     # Ensure the folder exists before saving the model
     os.makedirs(os.path.join("results", "models"), exist_ok=True)
     # Save the trained model
@@ -157,3 +185,4 @@ if __name__ == "__main__":
         }, f)
     
     print("Training complete. Model and results saved.")
+    print(f"Best validation loss: {best_val_loss:.6f} at epoch {early_stopping_epochs['final_model']}")

@@ -7,6 +7,9 @@ It uses AISDataset for input preprocessing and supports both MAE and Haversine l
 Results (validation and train loss) are saved to JSON files in the results/ folder.
 """
 
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
 import os
 import torch
 from torch.utils.data import DataLoader
@@ -17,6 +20,9 @@ import json
 
 if __name__ == "__main__":
 
+    ### ================================================================
+    ### --- DATA LOADING ---
+    ### ================================================================
     # GLOBAL HYPERPARAMETERS
     sequence_input_length = 5
     sequence_output_length = 5
@@ -26,8 +32,8 @@ if __name__ == "__main__":
     num_epochs = 1000  # NUMBER OF EPOCHS TO TRAIN
     patience = 5  # EARLY STOPPING PATIENCE
 
-    type_of_loss = ['MAE']  # , 'MAE'
-    models_to_test = ['LSTM']  # , 'GRU'
+    loss_types = ['MAE']
+    models_to_test = ['LSTM']
 
     trainset = AISDataset(os.path.join('datasplits', 'train.csv'),
                           seq_input_length=sequence_input_length,
@@ -64,11 +70,14 @@ if __name__ == "__main__":
     validation_loss_dict = {}
     train_loss_dict = {}
 
+    ### ================================================================
+    ### --- GRID SEARCH TRAINING LOOP ---
+    ### ================================================================
     # Test all combinations of hyperparameters
     for model_type in models_to_test:
         print(f"\n--- Training {model_type} Models ---")
 
-        for loss_type in type_of_loss:
+        for loss_type in loss_types:
             print(f"    Using {loss_type} loss function.")
             if loss_type == 'MAE':
                 loss_fn = torch.nn.L1Loss()
@@ -77,7 +86,6 @@ if __name__ == "__main__":
 
             for n_layers in num_layers:
                 for h_size in hidden_size:
-                    # Training loop would go here
                     # input_size=5 corresponds to 3 numeric features + 2 trigonometric COG features
                     if model_type == 'GRU':
                         model = GRUModel(input_size=5, embed_size=embedding_sizes, hidden_size=h_size,
@@ -97,6 +105,7 @@ if __name__ == "__main__":
                     patience_counter = 0
                     train_losses_list = []
                     val_losses_list = []
+                    best_train_loss = None
                     for epoch in range(num_epochs):
                         model.train()
                         train_loss = 0
@@ -132,23 +141,29 @@ if __name__ == "__main__":
                         # Early stopping check
                         if val_loss < best_val_loss:
                             best_val_loss = val_loss
-                            train_loss_model = train_loss
+                            best_train_loss = train_loss
                             patience_counter = 0
                         else:
                             patience_counter += 1
                             if patience_counter >= patience:
                                 print(f"        Early stopping triggered at epoch {epoch + 1}: "
-                                      f"Best Val Loss: {best_val_loss:.4f}, Train Loss: {train_loss_model:.4f}")
+                                      f"Best Val Loss: {best_val_loss:.4f}, Train Loss: {best_train_loss:.4f}")
                                 break
 
                     # Save the trained model losses
                     validation_loss_dict[(model_type, loss_type, n_layers, h_size)] = best_val_loss
-                    train_loss_dict[(model_type, loss_type, n_layers, h_size)] = train_loss_model
+                    train_loss_dict[(model_type, loss_type, n_layers, h_size)] = best_train_loss
 
-    # Save validation and training loss dictionaries in JSON files
+    ### ================================================================
+    ### --- SAVE RESULTS TO JSON ---
+    ### ================================================================
     with open('results/validation_loss_divided.json', 'w') as f:
         json.dump(validation_loss_dict, f)
     with open('results/train_loss_divided.json', 'w') as f:
         json.dump(train_loss_dict, f)
 
     print("\n--- Training Complete ---")
+
+### ================================================================
+### --- END OF SCRIPT ---
+### ================================================================

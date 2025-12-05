@@ -2,19 +2,25 @@
 metrics.py
 
 This module contains evaluation metrics for trajectory prediction models.
-It supports calculating distance-based errors between predicted and ground truth sequences,
-including Haversine distance, Average Displacement Error (ADE), Final Displacement Error (FDE),
-and Root Mean Square Error (RMSE).
+It implements:
+- Haversine distance computation between coordinates (km).
+- Average Displacement Error (ADE) over a sequence.
+- Final Displacement Error (FDE) at the final time step.
+- Root Mean Square Error (RMSE) across the trajectory.
 
-All coordinates are expected in latitude and longitude format (degrees), and
-all outputs are in kilometers.
+All inputs are torch tensors with shape (batch, seq_len, 2) and values in degrees.
+All outputs are scalar floats in kilometers.
 """
 
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
 from math import radians, sin, cos, sqrt, atan2
 
 def decode_predictions(predictions, lat_min, lat_max, lon_min, lon_max):
     """
     Decode normalized predictions back to original latitude and longitude.
+    Returns denormalized coordinates as a tensor.
 
     Args:
         predictions (Tensor): Normalized tensor of shape (..., 2).
@@ -34,6 +40,7 @@ def decode_predictions(predictions, lat_min, lat_max, lon_min, lon_max):
 def haversine_dist(coords1, coords2):
     """
     Compute average Haversine distance (in km) between batches of coordinate pairs.
+    Inputs are iterables of (lat, lon) pairs.
 
     Args:
         coords1 (Iterable of tuples): First set of (lat, lon) coordinates.
@@ -61,13 +68,15 @@ def haversine_dist(coords1, coords2):
 def ADE(coords1, coords2):
     """
     Compute Average Displacement Error (ADE) between two sequences of coordinates.
+    Inputs must be torch tensors in degrees.
+    Output is average error per time step in kilometers.
 
     Args:
         coords1 (Tensor): Predicted coordinates, shape (batch_size, seq_len, 2).
         coords2 (Tensor): Ground truth coordinates, shape (batch_size, seq_len, 2).
 
     Returns:
-        float: ADE (average error per time step) in km.
+        float: ADE in km.
     """
     distance = 0.0
     batch_size, seq_len, _ = coords1.shape
@@ -79,13 +88,15 @@ def ADE(coords1, coords2):
 def FDE(coords1, coords2):
     """
     Compute Final Displacement Error (FDE) between last predicted and true point.
+    Inputs must be torch tensors in degrees.
+    Output is error at last time step in kilometers.
 
     Args:
         coords1 (Tensor): Predicted coordinates, shape (batch_size, seq_len, 2).
         coords2 (Tensor): Ground truth coordinates, shape (batch_size, seq_len, 2).
 
     Returns:
-        float: FDE (error at last time step) in km.
+        float: FDE in km.
     """
     final_pred = coords1[:, -1]
     final_gt   = coords2[:, -1]
@@ -99,13 +110,15 @@ def FDE(coords1, coords2):
 def RMSE(coords1, coords2):
     """
     Compute Root Mean Square Error (RMSE) between predicted and true coordinates.
+    Inputs must be torch tensors in degrees.
+    Output is root of average squared Haversine error in kilometers.
 
     Args:
         coords1 (Tensor): Predicted coordinates, shape (batch_size, seq_len, 2).
         coords2 (Tensor): Ground truth coordinates, shape (batch_size, seq_len, 2).
 
     Returns:
-        float: RMSE (root of average squared Haversine error) in km.
+        float: RMSE in km.
     """
     batch_size, seq_len, _ = coords1.shape
     mse = 0.0
