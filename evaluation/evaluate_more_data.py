@@ -15,12 +15,13 @@ Note:
       or overwrite any models or outputs.
 """
 
-from modules.models import LSTMModel
-import torch
-from modules.dataset import AISDataset  
+import torch  
 import pandas as pd
-from modules.losses import HaversineLoss
 import os
+from modules.dataset import AISDataset
+from modules.models import LSTMModel
+from modules.metrics import decode_predictions, ADE, FDE, RMSE
+
 
 # Configuration flags
 MODEL_TYPE = 'LSTM'  # Options: 'LSTM', 'GRU' (currently only LSTM implemented)
@@ -33,25 +34,6 @@ SEQ_OUTPUT_LENGTH = 3
 BATCH_SIZE = 32
 NUM_WORKERS = 1
 
-def decode_predictions(predictions, lat_min, lat_max, lon_min, lon_max):
-    """
-    Decode normalized predictions back to original latitude and longitude coordinates.
-
-    Args:
-        predictions (torch.Tensor): Normalized predicted coordinates with shape (..., 2),
-                                    where the last dimension represents (latitude, longitude).
-        lat_min (float): Minimum latitude used for normalization.
-        lat_max (float): Maximum latitude used for normalization.
-        lon_min (float): Minimum longitude used for normalization.
-        lon_max (float): Maximum longitude used for normalization.
-
-    Returns:
-        torch.Tensor: Decoded predictions with original latitude and longitude scale.
-    """
-    decoded = predictions.clone()
-    decoded[..., 0] = decoded[..., 0] * (lat_max - lat_min) + lat_min  # Latitude
-    decoded[..., 1] = decoded[..., 1] * (lon_max - lon_min) + lon_min  # Longitude
-    return decoded
 
 if __name__ == "__main__":
     
@@ -60,11 +42,11 @@ if __name__ == "__main__":
     # --------------------------------------------
     
     # Load and concatenate all training CSV files starting with 'train_'
-    train_files = [os.path.join(TRAIN_DATA_DIR, f) for f in os.listdir(TRAIN_DATA_DIR) if f.startswith('train_') and f.endswith('.csv')]
+    train_files = [os.path.join(TRAIN_DATA_DIR, f) for f in os.listdir(TRAIN_DATA_DIR) if not f.endswith('27.csv')]
     train_df = pd.concat([pd.read_csv(f) for f in train_files], ignore_index=True) if train_files else pd.DataFrame()
 
     # Load and concatenate all validation CSV files starting with 'val_'
-    val_files = [os.path.join(VAL_DATA_DIR, f) for f in os.listdir(VAL_DATA_DIR) if f.startswith('val_') and f.endswith('.csv')]
+    val_files = [os.path.join(VAL_DATA_DIR, f) for f in os.listdir(VAL_DATA_DIR) if not f.endswith('27.csv')]
     val_df = pd.concat([pd.read_csv(f) for f in val_files], ignore_index=True) if val_files else pd.DataFrame()
         
     # Compute normalization constants from train and val data combined
@@ -97,7 +79,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     # Load and prepare test dataset using train/val normalization stats
     # --------------------------------------------
-    test_files = [os.path.join(TEST_DATA_DIR, f) for f in os.listdir(TEST_DATA_DIR) if f.startswith('test_') and f.endswith('.csv')]
+    test_files = [os.path.join(TEST_DATA_DIR, f) for f in os.listdir(TEST_DATA_DIR) if not f.endswith('27.csv')]
     test_df = pd.concat([pd.read_csv(f) for f in test_files], ignore_index=True) if test_files else pd.DataFrame()
             
     testset = AISDataset(
@@ -115,28 +97,42 @@ if __name__ == "__main__":
     # Evaluate the model on the test data using Haversine loss
     # --------------------------------------------
     model.eval()
-    total_loss = 0
-    loss_fn = HaversineLoss(lat_min, lat_max, lon_min, lon_max)
+    total_ade = 0.0
+    total_fde = 0.0
+    total_rmse = 0.0
 
     print("Evaluating model on test dataset...")
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
+            
+            # Decode predictions and targets back to lat/lon
+            decoded_output = decode_predictions(output, lat_min, lat_max, lon_min, lon_max)
+            decoded_target = decode_predictions(target, lat_min, lat_max, lon_min, lon_max)
 
             # Ensure output shape matches target shape
             assert output.shape == target.shape, \
                 f"Shape mismatch: {output.shape} vs {target.shape}"
+                
+            ade = ADE(decoded_output, decoded_target)
+            fde = FDE(decoded_output, decoded_target)
+            rmse = RMSE(decoded_output, decoded_target)
+            total_ade += ade
+            total_fde += fde
+            total_rmse += rmse
 
-            loss = loss_fn(output, target)
-            total_loss += loss.item()
-    
-    average_loss = total_loss / len(test_loader) if len(test_loader) > 0 else float('nan')
-    print(f"Average Test Loss: {average_loss:.4f}")
+    average_ade = total_ade / len(test_loader)
+    average_fde = total_fde / len(test_loader)
+    average_rmse = total_rmse / len(test_loader)
+    print(f"Average Test ADE: {average_ade:.4f}")
+    print(f"Average Test FDE: {average_fde:.4f}")
+    print(f"Average Test RMSE: {average_rmse:.4f}")
     
     # --------------------------------------------
     # Decode and display example predictions alongside real trajectories
     # --------------------------------------------
+    
     sample_data, sample_target = next(iter(test_loader))
     sample_data = sample_data.to(device)
     sample_output = model(sample_data)
@@ -149,3 +145,7 @@ if __name__ == "__main__":
         print(decoded_target[i].detach().cpu().numpy())
         print(f"Predicted trajectory:")
         print(decoded_output[i].detach().cpu().numpy())
+        
+        
+        
+        
