@@ -1,9 +1,26 @@
-from torch.utils.data import Dataset
-import pandas as pd
+"""
+AISDataset: PyTorch Dataset for AIS trajectory sequences.
+
+This dataset supports sequence-to-sequence learning with configurable input and output sequence lengths.
+It normalizes Latitude, Longitude, and SOG, and transforms COG into sin and cos components.
+
+If provided, normalization statistics from a training set can be reused for validation/test sets.
+"""
 import torch
+import pandas as pd
 import numpy as np
+from torch.utils.data import Dataset
 
 class AISDataset(Dataset):
+    """
+    Custom PyTorch Dataset for AIS (Automatic Identification System) trajectory data.
+
+    Args:
+        dataset_path (str or pd.DataFrame): Path to CSV or DataFrame containing AIS data.
+        seq_input_length (int): Number of time steps in the input sequence.
+        seq_output_length (int): Number of time steps in the output sequence.
+        stats (tuple, optional): Tuple of (lat_min, lat_max, lon_min, lon_max, sog_max) to apply consistent normalization.
+    """
     def __init__(self, dataset_path: str, seq_input_length: int = 6, seq_output_length: int = 1, stats=None):
         # We only support seq_output_length of 1 (autoregressive) or equal to seq_input_length (same window size input-output) for now
         if (seq_input_length != seq_output_length and seq_output_length != 1):
@@ -12,7 +29,7 @@ class AISDataset(Dataset):
         self.dataframe = dataset_path if isinstance(dataset_path, pd.DataFrame) else pd.read_csv(dataset_path)
 
         if 'Timestamp' in self.dataframe.columns:
-            self.dataframe['Timestamp'] = pd.to_datetime(self.dataframe['Timestamp'])
+            self.dataframe.loc[:, 'Timestamp'] = pd.to_datetime(self.dataframe.loc[:, 'Timestamp'])
             self.dataframe = self.dataframe.sort_values(by=['MMSI', 'Timestamp']).reset_index(drop=True)
         
         self.seq_input_length = seq_input_length
@@ -22,9 +39,9 @@ class AISDataset(Dataset):
 
         # --- 1. INDEXING LOGIC ---
         # Precompute valid indices
-        unique_mmsis = self.dataframe['MMSI'].unique()
+        unique_mmsis = self.dataframe.loc[:, 'MMSI'].unique()
         for mmsi in unique_mmsis:
-            mmsi_mask = self.dataframe['MMSI'] == mmsi
+            mmsi_mask = self.dataframe.loc[:, 'MMSI'] == mmsi
             mmsi_df = self.dataframe[mmsi_mask]
             
             # Iterate through segments
@@ -36,13 +53,14 @@ class AISDataset(Dataset):
                 for i in range(num_sequences):
                     self.valid_idxs.append(indices[i])
 
-        # --- 2. NORMALIZATION LOGIC (FIXED) ---
+        # --- 2. NORMALIZATION LOGIC ---
+        # If no stats are provided, compute from current dataset
         if stats is None:
-            self.lat_min = self.dataframe['Latitude'].min()
-            self.lat_max = self.dataframe['Latitude'].max()
-            self.lon_min = self.dataframe['Longitude'].min()
-            self.lon_max = self.dataframe['Longitude'].max()
-            self.sog_max = self.dataframe['SOG'].max() # Add speed max
+            self.lat_min = self.dataframe.loc[:, 'Latitude'].min()
+            self.lat_max = self.dataframe.loc[:, 'Latitude'].max()
+            self.lon_min = self.dataframe.loc[:, 'Longitude'].min()
+            self.lon_max = self.dataframe.loc[:, 'Longitude'].max()
+            self.sog_max = self.dataframe.loc[:, 'SOG'].max() # Add speed max
         else:
             self.lat_min, self.lat_max, self.lon_min, self.lon_max, self.sog_max = stats
 
@@ -51,18 +69,31 @@ class AISDataset(Dataset):
 
         # Apply Normalization
         # epsilon 1e-6 to avoid division by zero
-        self.dataframe['Latitude'] = (self.dataframe['Latitude'] - self.lat_min) / (self.lat_max - self.lat_min + 1e-6)
-        self.dataframe['Longitude'] = (self.dataframe['Longitude'] - self.lon_min) / (self.lon_max - self.lon_min + 1e-6)
+        self.dataframe.loc[:, 'Latitude'] = (self.dataframe.loc[:, 'Latitude'] - self.lat_min) / (self.lat_max - self.lat_min + 1e-6)
+        self.dataframe.loc[:, 'Longitude'] = (self.dataframe.loc[:, 'Longitude'] - self.lon_min) / (self.lon_max - self.lon_min + 1e-6)
         
         # Normalize Speed (SOG) roughly 0-1
-        self.dataframe['SOG'] = self.dataframe['SOG'] / (self.sog_max + 1e-6)           
+        self.dataframe.loc[:, 'SOG'] = self.dataframe.loc[:, 'SOG'] / (self.sog_max + 1e-6)           
                 
 
 
     def __len__(self):
+        """
+        Returns:
+            int: Number of valid input-output sequences.
+        """
         return len(self.valid_idxs)
 
     def __getitem__(self, idx):
+        """
+        Constructs one input-output pair from the AIS data.
+
+        Args:
+            idx (int): Index of the sequence.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: Tuple of input tensor x and target tensor y.
+        """
         real_idx = self.valid_idxs[idx]
 
         # --- 3. COG (Degrees to Radians) ---

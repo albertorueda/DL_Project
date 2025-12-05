@@ -13,9 +13,6 @@ It implements:
   fixed-interval time series.
 - Optional normalization for Latitude/Longitude.
 - Final dataset preparation and splitting by vessel (MMSI).
-
-All steps include comments intended for pedagogical clarity in the context
-of the DTU 02456 Deep Learning course project.
 """
 
 
@@ -213,8 +210,18 @@ def df_create(file_path: str) -> pd.DataFrame:
     ### ================================================================
     def track_filter(g):
         """
-        Filter tracks based on length, speed, and timespan criteria.
-        Ensures only meaningful vessel trajectories are kept for modeling.
+        Filter a DataFrame group representing a vessel track or segment.
+
+        Conditions:
+            - Length > MIN_TRACK_LENGTH
+            - Max SOG between MIN_SOG_FOR_TRACK and MAX_SOG_FOR_TRACK
+            - Timespan >= MIN_TRACK_TIMESPAN_SECONDS
+
+        Args:
+            g (pd.DataFrame): Vessel track data.
+
+        Returns:
+            bool: True if the track passes all filters.
         """
         len_filt = len(g) > MIN_TRACK_LENGTH  # Min required length of track/segment
         sog_filt = MIN_SOG_FOR_TRACK <= g["SOG"].max() <= MAX_SOG_FOR_TRACK  # Remove stationary or outlier segments
@@ -268,9 +275,16 @@ def df_create(file_path: str) -> pd.DataFrame:
         
         def interpolate_linear(df_in, interval=f"10min", group_col="MMSI", method="linear"):
             """
-            Interpolate linear variables (Latitude, Longitude, SOG) using pandas.resample.
-            Interpolates per MMSI–Segment pair, and includes Segment column in the output.
-            Returns DataFrame with columns [MMSI, Segment, Timestamp, ...].
+            Interpolates Latitude, Longitude, and SOG linearly for each MMSI–Segment pair.
+
+            Args:
+                df_in (pd.DataFrame): Input data containing Latitude, Longitude, SOG, MMSI, Segment.
+                interval (str): Resampling interval (e.g. "10min").
+                group_col (str): Grouping column, usually "MMSI".
+                method (str): Interpolation method.
+
+            Returns:
+                pd.DataFrame: Interpolated data with [MMSI, Segment, Timestamp, Latitude, Longitude, SOG].
             """
             df = df_in.copy()
             df.index = pd.to_datetime(df.index, errors="coerce")
@@ -307,8 +321,15 @@ def df_create(file_path: str) -> pd.DataFrame:
 
         def interpolate_circular(df_in, interval=f"10min", group_col="MMSI"):
             """
-            Generalized circular interpolation for angular columns (e.g., COG), per MMSI–Segment.
-            Returns DataFrame with [MMSI, Segment, Timestamp, ...circular_cols...]
+            Interpolates angular features (e.g., COG) using sine/cosine trick to avoid discontinuities.
+
+            Args:
+                df_in (pd.DataFrame): Input data containing COG, MMSI, Segment.
+                interval (str): Resampling interval (e.g. "10min").
+                group_col (str): Grouping column, usually "MMSI".
+
+            Returns:
+                pd.DataFrame: Interpolated angular data with [MMSI, Segment, Timestamp, COG].
             """
             df = df_in.copy()
             df.index = pd.to_datetime(df.index, errors="coerce")
@@ -387,7 +408,15 @@ def df_create(file_path: str) -> pd.DataFrame:
 ### ================================================================
 def split_dataset(df: pd.DataFrame, train_frac: float, val_frac: float) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Split the dataset into training, validation, and test sets.
+    Splits a cleaned AIS DataFrame into train/val/test splits based on MMSI-level vessel grouping.
+
+    Args:
+        df (pd.DataFrame): Cleaned AIS dataset.
+        train_frac (float): Fraction of vessels to include in training set.
+        val_frac (float): Fraction of vessels to include in validation set.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: DataFrames for train, validation, and test sets.
     """
 
     # Determine number of unique vessels to split by vessel rather than by row
