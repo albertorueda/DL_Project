@@ -2,9 +2,9 @@
 # embedded options to bsub - start with #BSUB
 
 # -- our name ---
-#BSUB -J hav_gru_partial
+#BSUB -J training_parameters
 # -- choose queue --
-#BSUB -q gpul40s
+#BSUB -q gpua100
 
 # -- specify that we need 4GB of memory per core/slot --
 # so when asking for 4 cores, we are really asking for 4*4GB=16GB of memory 
@@ -28,7 +28,7 @@
 #BSUB -e Output_%J.err
 
 # -- estimated wall clock time (execution time): hh:mm -- 
-#BSUB -W 6:00 
+#BSUB -W 24:00 
 
 # -- Number of cores requested -- 
 #BSUB -n 4
@@ -37,8 +37,8 @@
 #BSUB -R "span[hosts=1]"
 
 # -- end of LSF options -- 
-#BSUB -o output/big_loop_training%J.out
-#BSUB -e output/big_loop_training%J.err
+#BSUB -o output/evaluate%J.out
+#BSUB -e output/evaluate%J.err
 
 source dl_project/bin/activate
-python3 training_big_loop.py
+python -m training.training_parameters
