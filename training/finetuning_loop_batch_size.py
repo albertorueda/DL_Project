@@ -44,9 +44,9 @@ if __name__ == "__main__":
     train_loss_dict = {}
     
     # Load datasets
-    trainset = AISDataset(os.path.join('datasplits', 'train.csv'), seq_input_length=5, seq_output_length=5)
+    trainset = AISDataset(os.path.join('datasplits', 'train_aisdk-2025-02-27.csv'), seq_input_length=5, seq_output_length=5)
     train_stats = trainset.stats
-    valset = AISDataset(os.path.join('datasplits', 'val.csv'), seq_input_length=5, seq_output_length=5, stats=train_stats)
+    valset = AISDataset(os.path.join('datasplits', 'val_aisdk-2025-02-27.csv'), seq_input_length=5, seq_output_length=5, stats=train_stats)
     
     loss_fn = torch.nn.L1Loss()
         

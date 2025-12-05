@@ -37,6 +37,7 @@ if __name__ == "__main__":
     patience = 5  # EARLY STOPPING PATIENCE
     
     loss_type = 'MAE'
+    #loss_type = 'HAVERSINE'  # Choose between 'MAE' and 'HAVERSINE'
 
     ### ================================================================
     ### --- DATA LOADING ---

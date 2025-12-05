@@ -24,11 +24,11 @@ import os
 import json
 import pandas as pd
 import torch
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
 from modules.models import GRUModel, LSTMModel
 from modules.losses import HaversineLoss
-from tqdm import tqdm
 
 ### ================================================================
 ### --- TRAINING SCRIPT ENTRY POINT ---
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     data_files = os.listdir('datasplits/')
     
     # Concat all the csv files from multiple days that start with 'train_'
-    train_files = [os.path.join('datasplits', f) for f in data_files if f.startswith('train') and f != 'train.csv']
+    train_files = [os.path.join('datasplits/train', f) for f in data_files if not f.endswith('27.csv')]
     for i, file_path in enumerate(train_files):
         if i == 0:
             train_df = pd.read_csv(file_path)
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     train_stats = trainset.stats
     
     # 3. Same for validation set - concat multiple days' CSV files
-    val_files = [os.path.join('datasplits', f) for f in data_files if f.startswith('val') and f != 'val.csv']
+    val_files = [os.path.join('datasplits/val', f) for f in data_files if not f.endswith('27.csv')]
     for i, file_path in enumerate(val_files):
         if i == 0:
             val_df = pd.read_csv(file_path)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     validation_losses = {}
     early_stopping_epochs = {}
 
-    model = LSTMModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.1, first_linear=False).to(device)
+    model = LSTMModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.1).to(device)
 
     # Define optimizer and loss function
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)

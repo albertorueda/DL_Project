@@ -11,10 +11,6 @@ Includes GRUModel and LSTMModel classes with optional initial linear embedding.
 
 import torch.nn as nn
 
-# for now : 
-input_size = 4
-output_size = 2 
-
 ### ================================================================
 ### --- GRU MODEL ---
 ### ================================================================

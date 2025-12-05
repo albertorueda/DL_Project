@@ -32,10 +32,10 @@ if __name__ == "__main__":
     num_epochs = 1000  # NUMBER OF EPOCHS TO TRAIN
     patience = 5  # EARLY STOPPING PATIENCE
 
-    loss_types = ['MAE']
-    models_to_test = ['LSTM']
+    loss_types = ['MAE', 'HAVERSINE']
+    models_to_test = ['LSTM', 'GRU']
 
-    trainset = AISDataset(os.path.join('datasplits', 'train.csv'),
+    trainset = AISDataset(os.path.join('datasplits', 'train_aisdk-2025-02-27.csv'),
                           seq_input_length=sequence_input_length,
                           seq_output_length=sequence_output_length)
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     train_stats = trainset.stats
 
     # 3. Pass stats to Validation Set
-    valset = AISDataset(os.path.join('datasplits', 'val.csv'),
+    valset = AISDataset(os.path.join('datasplits', 'val_aisdk-2025-02-27.csv'),
                         seq_input_length=sequence_input_length,
                         seq_output_length=sequence_output_length,
                         stats=train_stats)
@@ -64,9 +64,9 @@ if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
 
-    num_layers = [4]
+    num_layers = [2, 4]
     embedding_sizes = 64
-    hidden_size = [64]
+    hidden_size = [64, 128, 256]
     validation_loss_dict = {}
     train_loss_dict = {}
 

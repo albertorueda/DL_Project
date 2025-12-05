@@ -43,8 +43,8 @@ if __name__ == "__main__":
         
         print(f"\n--- Training window size {window_size} ---")
 
-        train_path = os.path.join("datasplits", "train.csv")
-        val_path = os.path.join("datasplits", "val.csv")
+        train_path = os.path.join("datasplits", "train_aisdk-2025-02-27.csv")
+        val_path = os.path.join("datasplits", "val_aisdk-2025-02-27.csv")
         trainset = AISDataset(train_path, seq_input_length=window_size, seq_output_length=window_size)
     
         # 2. Extract stats from Train Set
