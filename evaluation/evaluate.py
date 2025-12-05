@@ -1,29 +1,31 @@
+"""
+Evaluation script for pre-trained LSTM and GRU models on AIS trajectory data.
+
+This script loads trained models, applies them to the test dataset, and computes
+evaluation metrics including ADE, FDE, and RMSE. It assumes that normalization 
+parameters from training/validation are reused for test set consistency.
+"""
+
 from modules.models import GRUModel, LSTMModel
 import torch
 from modules.dataset import AISDataset  
 import pandas as pd
-from modules.losses import HaversineLoss
 from modules.metrics import ADE, decode_predictions, FDE, RMSE
+import os
 
 if __name__ == "__main__":
     
-    # --------------------------------------------
-    # LOAD TRAIN NORMALIZATION CONSTANTS (IMPORTANT!)
-    # Ensures consistency between train / val / test
-    # --------------------------------------------
-    train_df = pd.read_csv('datasplits/train.csv')
-    val_df = pd.read_csv('datasplits/val.csv')
+    # Load normalization stats from training/validation to ensure consistent scaling.
+    data_dir = "datasplits"
+    train_df = pd.read_csv(os.path.join(data_dir, 'train', 'train_aisdk-2025-02-27.csv'))
+    val_df = pd.read_csv(os.path.join(data_dir, 'val', 'val_aisdk-2025-02-27.csv'))
     lat_min = min(train_df['Latitude'].min(), val_df['Latitude'].min())
     lat_max = max(train_df['Latitude'].max(), val_df['Latitude'].max())
     lon_min = min(train_df['Longitude'].min(), val_df['Longitude'].min())
     lon_max = max(train_df['Longitude'].max(), val_df['Longitude'].max())
-    sog_max = max(train_df['SOG'].max(), val_df['SOG'].max())
+    sog_max = max(train_df['SOG'].max(), train_df['SOG'].max())
 
-    # --------------------------------------------
-    # Load model (ensure same architecture as training)
-    # - Model 1: LSTM with Haversine Loss -- 2 layers, 256 hidden, 64 embed
-    # - Model 2: GRU with MAE Loss -- 2 layers, 256 hidden, 64 embed
-    # --------------------------------------------
+    # Initialize LSTM and GRU models with same architecture as during training.
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
 
@@ -48,11 +50,9 @@ if __name__ == "__main__":
     model_gru.load_state_dict(torch.load('results/models/mae_final_model.pth', map_location=device))
     model_lstm.load_state_dict(torch.load('results/models/hav_final_model.pth', map_location=device))
 
-    # --------------------------------------------
-    # Load test dataset (use train normalization stats)
-    # --------------------------------------------
+    # Load test dataset using same normalization stats as training.
     testset = AISDataset(
-        'datasplits/test.csv',
+        os.path.join(data_dir, 'test', 'test_aisdk-2025-02-27.csv'),
         seq_input_length=3,
         seq_output_length=3,
         stats=(lat_min, lat_max, lon_min, lon_max, sog_max)
@@ -62,9 +62,7 @@ if __name__ == "__main__":
         testset, batch_size=32, shuffle=False, num_workers=1
     )
 
-    # --------------------------------------------
-    # Evaluate with Haversine Loss (now consistent)
-    # --------------------------------------------
+    # Evaluate both models using standard metrics (ADE, FDE, RMSE) on unnormalized outputs.
     model_lstm.eval()
     model_gru.eval()
     total_ade_lstm = 0
@@ -81,7 +79,7 @@ if __name__ == "__main__":
             output_lstm = model_lstm(data)
             output_gru = model_gru(data)
             
-            
+            # Unnormalize predicted and target coordinates for metric calculation.
             output_lstm = decode_predictions(output_lstm, lat_min, lat_max, lon_min, lon_max)
             output_gru = decode_predictions(output_gru, lat_min, lat_max, lon_min, lon_max)
             target = decode_predictions(target, lat_min, lat_max, lon_min, lon_max)
@@ -112,4 +110,3 @@ if __name__ == "__main__":
     print(f"Average ADE GRU: {average_ade_gru:.4f}")
     print(f"Average FDE GRU: {average_fde_gru:.4f}")
     print(f"Average RMSE GRU: {average_rmse_gru:.4f}")
-    

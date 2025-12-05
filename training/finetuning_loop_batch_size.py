@@ -1,17 +1,28 @@
+"""
+Training script to evaluate the effect of different batch sizes on model performance.
+Trains a GRU model on AIS trajectory data using L1 loss and early stopping.
+Results are saved in JSON files under 'results/'.
+"""
+import os
+import json
 import torch
-from torch import dropout
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
 from modules.models import GRUModel, LSTMModel
 from modules.losses import HaversineLoss
 
 if __name__ == "__main__":
+    """
+    Run training loop for different batch sizes and log train/val loss.
+    Uses fixed GRU architecture, L1 loss, early stopping, and Adam optimizer.
+    Saves best losses for each batch size configuration.
+    """
 
-    #GLOBAL HYPERPARAMETERS
+    # GLOBAL HYPERPARAMETERS
     batch_sizes = [16, 32, 64] 
-    lr = 0.00001 #LEARNING RATE FOR ADAM OPTIMIZER
-    num_epochs = 1000 #NUMBER OF EPOCHS TO TRAIN
-    patience = 5 #EARLY STOPPING PATIENCE
+    lr = 0.00001 # LEARNING RATE FOR ADAM OPTIMIZER
+    num_epochs = 1000 # NUMBER OF EPOCHS TO TRAIN
+    patience = 5 # EARLY STOPPING PATIENCE
 
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -20,17 +31,17 @@ if __name__ == "__main__":
     validation_loss_dict = {}
     train_loss_dict = {}
     
-    trainset = AISDataset('datasplits/train.csv', seq_input_length=5, seq_output_length=5)
+    trainset = AISDataset(os.path.join('datasplits', 'train.csv'), seq_input_length=5, seq_output_length=5)
     # 2. Extract stats from Train Set
     train_stats = trainset.stats
     # 3. Pass stats to Validation Set
-    valset = AISDataset('datasplits/val.csv', seq_input_length=5, seq_output_length=5, stats=train_stats)
+    valset = AISDataset(os.path.join('datasplits', 'val.csv'), seq_input_length=5, seq_output_length=5, stats=train_stats)
     
     loss_fn = torch.nn.L1Loss()
         
     # Now batchsize
     for batchsize in batch_sizes:
-        # TODO: change to proper model and loss (the best one)
+        # Using GRU model with fixed hyperparameters for batch size ablation study
         model = GRUModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.2).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         

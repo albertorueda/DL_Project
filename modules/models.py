@@ -1,7 +1,13 @@
-import torch.nn as nn
-from torch.nn import GRU, Module, Linear, ReLU, Sequential, Dropout
+"""
+models.py
 
-## for now : 
+Contains neural network model definitions for sequence-to-sequence prediction of vessel trajectories.
+Includes GRUModel and LSTMModel classes with optional initial linear embedding.
+"""
+
+import torch.nn as nn
+
+# for now : 
 input_size = 4
 output_size = 2 
 

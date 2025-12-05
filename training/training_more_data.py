@@ -1,14 +1,21 @@
+"""
+Training script using multiple AISDK dates merged into a single training and validation set.
+Uses the Haversine or MAE loss. Trains an LSTM model on normalized data.
+Results are saved to results/models and results/more_days_hav.json.
+
+Note:
+    This script expects all individual train/val CSVs to be located in 'datasplits/' and start with 'train_' or 'val_'.
+    Files like 'train.csv' and 'val.csv' are ignored.
+"""
+import os
+import json
+import pandas as pd
 import torch
-from torch import dropout
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
 from modules.models import GRUModel, LSTMModel
-import matplotlib.pyplot as plt
 from modules.losses import HaversineLoss
 from tqdm import tqdm
-import json
-import os
-import pandas as pd
 
 if __name__ == "__main__":
 
@@ -24,8 +31,8 @@ if __name__ == "__main__":
     # Open datasplits folder
     data_files = os.listdir('datasplits/')
     
-    # Concat all the csv that start with train
-    train_files = ['datasplits/' + f for f in data_files if f.startswith('train') and f != 'train.csv']
+    # Concat all the csv files from multiple days that start with 'train_'
+    train_files = [os.path.join('datasplits', f) for f in data_files if f.startswith('train') and f != 'train.csv']
     for i, file_path in enumerate(train_files):
         if i == 0:
             train_df = pd.read_csv(file_path)
@@ -36,8 +43,8 @@ if __name__ == "__main__":
     trainset = AISDataset(train_df, seq_input_length=sequence_input_length, seq_output_length=sequence_output_length)
     train_stats = trainset.stats
     
-    # 3. Same for validation set
-    val_files = ['datasplits/' + f for f in data_files if f.startswith('val') and f != 'val.csv']
+    # 3. Same for validation set - concat multiple days' CSV files
+    val_files = [os.path.join('datasplits', f) for f in data_files if f.startswith('val') and f != 'val.csv']
     for i, file_path in enumerate(val_files):
         if i == 0:
             val_df = pd.read_csv(file_path)
@@ -68,7 +75,7 @@ if __name__ == "__main__":
     val_losses_i = {}
     train_losses_i = {}    
 
-    model = LSTMModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.1).to(device)
+    model = LSTMModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.1, first_linear=False).to(device)
 
     # Define optimizer and loss function
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -132,15 +139,17 @@ if __name__ == "__main__":
                 print(f"Early stopping triggered at epoch {epoch+1}.")
                 break
     
+    # Ensure the folder exists before saving the model
+    os.makedirs(os.path.join("results", "models"), exist_ok=True)
     # Save the trained model
-    torch.save(model.state_dict(), 'results/models/more_days_hav.pth')
+    torch.save(model.state_dict(), os.path.join("results", "models", "more_days_hav.pth"))
     
     # Save training and validation losses
     training_losses['final_model'] = train_losses_list
     validation_losses['final_model'] = val_losses_list
     early_stopping_epochs['final_model'] = epoch + 1
     
-    with open('results/more_days_hav.json', 'w') as f:
+    with open(os.path.join("results", "more_days_hav.json"), 'w') as f:
         json.dump({
             'training_losses': training_losses,
             'validation_losses': validation_losses,

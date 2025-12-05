@@ -1,17 +1,32 @@
+"""
+Finetuning experiment: GRU model with varying dropout rates.
+This script trains a GRU-based sequence model on AIS data using different dropout values.
+It applies early stopping and saves the best training and validation losses for each configuration.
+
+Output:
+- Trained models (not saved here)
+- validation_loss_dropout.json
+- train_loss_dropout.json
+"""
 import torch
-from torch import dropout
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
 from modules.models import GRUModel, LSTMModel
 from modules.losses import HaversineLoss
+import os
+import json
 
 if __name__ == "__main__":
+    """
+    Loop over dropout values [0.1, 0.2, 0.3, 0.4] and train a GRU model for each.
+    Records best validation and training loss for each config using early stopping.
+    """
 
-    #GLOBAL HYPERPARAMETERS
-    dropout_nums = [0.1, 0.2, 0.3, 0.4] #FOR THE DROPOUT LAYER IN THE MODEL
-    lr = 0.00001 #LEARNING RATE FOR ADAM OPTIMIZER
-    num_epochs = 1000 #NUMBER OF EPOCHS TO TRAIN
-    patience = 5 #EARLY STOPPING PATIENCE
+    # GLOBAL HYPERPARAMETERS
+    dropout_nums = [0.1, 0.2, 0.3, 0.4] # FOR THE DROPOUT LAYER IN THE MODEL
+    lr = 0.00001 # LEARNING RATE FOR ADAM OPTIMIZER
+    num_epochs = 1000 # NUMBER OF EPOCHS TO TRAIN
+    patience = 5 # EARLY STOPPING PATIENCE
 
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -20,11 +35,11 @@ if __name__ == "__main__":
     validation_loss_dict = {}
     train_loss_dict = {}
     
-    trainset = AISDataset('datasplits/train.csv', seq_input_length=5, seq_output_length=5)
+    trainset = AISDataset(os.path.join("datasplits", "train.csv"), seq_input_length=5, seq_output_length=5)
     # 2. Extract stats from Train Set
     train_stats = trainset.stats
     # 3. Pass stats to Validation Set
-    valset = AISDataset('datasplits/val.csv', seq_input_length=5, seq_output_length=5, stats=train_stats)
+    valset = AISDataset(os.path.join("datasplits", "val.csv"), seq_input_length=5, seq_output_length=5, stats=train_stats)
     
     loss_fn = torch.nn.L1Loss()
 
@@ -93,8 +108,8 @@ if __name__ == "__main__":
         train_loss_dict[f"dropout{dp}"] = train_loss_model
         
     # save validation and training loss dictionaries in a json file
-    with open('results/validation_loss_dropout.json', 'w') as f:
+    os.makedirs(os.path.join("results", "finetuning"), exist_ok=True)
+    with open(os.path.join("results", "finetuning", "validation_loss_dropout.json"), 'w') as f:
         json.dump(validation_loss_dict, f)
-    with open('results/train_loss_dropout.json', 'w') as f:
+    with open(os.path.join("results", "finetuning", "train_loss_dropout.json"), 'w') as f:
         json.dump(train_loss_dict, f)
-    
