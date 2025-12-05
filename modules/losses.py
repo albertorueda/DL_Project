@@ -1,10 +1,43 @@
-import torch
+"""
+Loss functions for trajectory prediction models.
 
+Includes:
+- HaversineLoss: great-circle distance in kilometers between predicted and ground-truth coordinates (normalized inputs).
+- HybridTrajectoryLoss: combined loss with position, direction, and speed components (radian input).
+"""
+
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
+import torch
+import torch.nn.functional as F
+
+### ================================================================
+### --- HAVERSINE LOSS ---
+### ================================================================
 class HaversineLoss(torch.nn.Module):
+    """
+    Loss function computing the great-circle distance between predicted and true coordinates.
+
+    Designed for inputs normalized to [0, 1] representing latitude and longitude.
+
+    Input shape:
+        y_pred, y_true: (batch, seq, 2) normalized lat/lon coordinates.
+    """
     def __init__(self, 
                  lat_min, lat_max,
                  lon_min, lon_max,
                  radius_earth_km=6371.0):
+        """
+        Initializes normalization boundaries and Earth radius.
+
+        Args:
+            lat_min (float): Minimum latitude of the dataset (for unnormalization).
+            lat_max (float): Maximum latitude of the dataset (for unnormalization).
+            lon_min (float): Minimum longitude of the dataset (for unnormalization).
+            lon_max (float): Maximum longitude of the dataset (for unnormalization).
+            radius_earth_km (float, optional): Radius of the Earth in km. Defaults to 6371.0.
+        """
         super().__init__()
         self.lat_min = lat_min
         self.lat_max = lat_max
@@ -14,9 +47,14 @@ class HaversineLoss(torch.nn.Module):
 
     def forward(self, y_pred, y_true):
         """
+        Computes mean Haversine distance (in kilometers) between predicted and true coordinates.
+
         Args:
-            y_pred: (batch, seq, 2) lat/lon normalizados [0,1]
-            y_true: (batch, seq, 2) lat/lon normalizados [0,1]
+            y_pred (Tensor): Predicted normalized lat/lon coordinates. Shape: (batch, seq, 2)
+            y_true (Tensor): True normalized lat/lon coordinates. Shape: (batch, seq, 2)
+
+        Returns:
+            Tensor: Mean Haversine distance in kilometers.
         """
 
         # --- DESNORMALIZAR ---
@@ -49,14 +87,24 @@ class HaversineLoss(torch.nn.Module):
         return torch.mean(distance)
 
 
-
-
-
-
-import torch.nn.functional as F
-
+### ================================================================
+### --- HYBRID TRAJECTORY LOSS ---
+### ================================================================
 class HybridTrajectoryLoss(torch.nn.Module):
+    """
+    Combined trajectory loss that accounts for position error, directional difference, and speed consistency.
+
+    Assumes inputs are in radians (not normalized).
+    """
     def __init__(self, w_pos=1.0, w_ang=0.2, w_spd=0.1, radius_km=6371.0, max_pos_error_km=10.0):
+        """
+        Args:
+            w_pos (float): Weight for position error.
+            w_ang (float): Weight for angular (directional) error.
+            w_spd (float): Weight for speed error.
+            radius_km (float): Radius of Earth for distance calculation.
+            max_pos_error_km (float): Maximum position error used for normalization via tanh.
+        """
         super().__init__()
         self.w_pos = w_pos
         self.w_ang = w_ang
@@ -86,9 +134,14 @@ class HybridTrajectoryLoss(torch.nn.Module):
 
     def forward(self, y_pred, y_true):
         """
+        Compute total hybrid trajectory loss as weighted sum of position, angle, and speed components.
+
         Args:
-            y_pred: (Batch, Seq_Len, 2) -> Lat/Lon in RADIANS
-            y_true: (Batch, Seq_Len, 2) -> Lat/Lon in RADIANS
+            y_pred (Tensor): Predicted lat/lon coordinates in radians. Shape: (batch, seq, 2)
+            y_true (Tensor): Ground truth lat/lon coordinates in radians. Shape: (batch, seq, 2)
+
+        Returns:
+            Tuple[Tensor, Dict[str, float]]: Total loss and breakdown by component.
         """
 
         # --- 1. Position Loss (Haversine -> Tanh) ---
@@ -136,4 +189,3 @@ class HybridTrajectoryLoss(torch.nn.Module):
             "loss_ang": loss_ang.item(),
             "loss_spd": loss_spd.item()
         }
-    

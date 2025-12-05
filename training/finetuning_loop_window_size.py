@@ -1,17 +1,34 @@
+"""
+Fine-tuning loop to test different window sizes (input/output lengths) for sequence-to-sequence prediction models.
+Trains a GRU model with fixed hyperparameters across different window sizes and tracks training/validation losses.
+"""
+
+### ================================================================
+### --- IMPORTS ---
+### ================================================================
+import os
+import json
 import torch
-from torch import dropout
 from torch.utils.data import DataLoader
 from modules.dataset import AISDataset 
-from modules.models import GRUModel, LSTMModel
+from modules.models import GRUModel, LSTMModel  # Import available model architectures
 from modules.losses import HaversineLoss
+
+# ================================================================
+# --- MAIN EXECUTION ---
+# ================================================================
 
 if __name__ == "__main__":
 
-    #GLOBAL HYPERPARAMETERS
+    # Loop over different window sizes and train a model for each configuration
+
+    # ================================================================
+    # --- HYPERPARAMETERS AND SETUP ---
+    # ================================================================
     window_sizes = [3, 5, 7]
-    lr = 0.00001 #LEARNING RATE FOR ADAM OPTIMIZER
-    num_epochs = 1000 #NUMBER OF EPOCHS TO TRAIN
-    patience = 5 #EARLY STOPPING PATIENCE
+    lr = 0.00001 # LEARNING RATE FOR ADAM OPTIMIZER
+    num_epochs = 1000 # NUMBER OF EPOCHS TO TRAIN
+    patience = 5 # EARLY STOPPING PATIENCE
 
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -21,18 +38,20 @@ if __name__ == "__main__":
     train_loss_dict = {}
     
     for window_size in window_sizes:
-        # TODO: change to proper model and loss (the best one)
-        model = GRUModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.2).to(device)
+        model = GRUModel(input_size=5, embed_size=64, hidden_size=256, output_size=2, num_layers=2, dropout=0.2, first_linear=True).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         
-        print(f"\n--- Training {window_size} window size ---")
-        trainset = AISDataset('datasplits/train.csv', seq_input_length=window_size, seq_output_length=window_size)
+        print(f"\n--- Training window size {window_size} ---")
+
+        train_path = os.path.join("datasplits", "train.csv")
+        val_path = os.path.join("datasplits", "val.csv")
+        trainset = AISDataset(train_path, seq_input_length=window_size, seq_output_length=window_size)
     
         # 2. Extract stats from Train Set
         train_stats = trainset.stats
 
         # 3. Pass stats to Validation Set
-        valset = AISDataset('datasplits/val.csv', seq_input_length=window_size, seq_output_length=window_size, stats=train_stats)
+        valset = AISDataset(val_path, seq_input_length=window_size, seq_output_length=window_size, stats=train_stats)
 
         # Create data loaders
         train_loader = DataLoader(trainset, batch_size=64, shuffle=True, num_workers=1)
@@ -43,7 +62,10 @@ if __name__ == "__main__":
         print(f"Number of training batches: {len(train_loader)}")
         print(f"Number of validation batches: {len(val_loader)}")
         
-        # Training loop
+        ### ================================================================
+        ### --- TRAINING LOOP ---
+        ### ================================================================
+
         best_val_loss = float('inf')
         patience_counter = 0
         train_losses_list = []
@@ -96,9 +118,12 @@ if __name__ == "__main__":
         validation_loss_dict[f"window_size{window_size}"] = best_val_loss
         train_loss_dict[f"window_size{window_size}"] = train_loss_model
         
-    # save validation and training loss dictionaries in a json file
-    with open('results/validation_loss_window_size.json', 'w') as f:
+    ### ================================================================
+    ### --- SAVE LOSSES ---
+    ### ================================================================
+
+    # Save best validation and training losses for each window size configuration to results folder
+    with open(os.path.join('results', 'validation_loss_window_size.json'), 'w') as f:
         json.dump(validation_loss_dict, f)
-    with open('results/train_loss_window_size.json', 'w') as f:
+    with open(os.path.join('results', 'train_loss_window_size.json'), 'w') as f:
         json.dump(train_loss_dict, f)
-    
