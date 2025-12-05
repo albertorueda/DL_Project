@@ -48,10 +48,10 @@ if __name__ == "__main__":
     ### --- LOAD AND CONCATENATE MULTI-DAY DATASETS ---
     ### ================================================================
     # Read datasplit folder and merge multi-day train/val files
-    data_files = os.listdir('datasplits/')
+    train_data_files_list = os.listdir('datasplits/train')
     
     # Concat all the csv files from multiple days that start with 'train_'
-    train_files = [os.path.join('datasplits/train', f) for f in data_files if not f.endswith('27.csv')]
+    train_files = [os.path.join('datasplits/train', f) for f in train_data_files_list if not f.endswith('27.csv')]
     for i, file_path in enumerate(train_files):
         if i == 0:
             train_df = pd.read_csv(file_path)
@@ -63,7 +63,8 @@ if __name__ == "__main__":
     train_stats = trainset.stats
     
     # 3. Same for validation set - concat multiple days' CSV files
-    val_files = [os.path.join('datasplits/val', f) for f in data_files if not f.endswith('27.csv')]
+    val_data_files_list = os.listdir('datasplits/val')
+    val_files = [os.path.join('datasplits/val', f) for f in val_data_files_list if not f.endswith('27.csv')]
     for i, file_path in enumerate(val_files):
         if i == 0:
             val_df = pd.read_csv(file_path)

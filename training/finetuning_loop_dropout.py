@@ -44,11 +44,11 @@ if __name__ == "__main__":
     validation_loss_dict = {}
     train_loss_dict = {}
     
-    trainset = AISDataset(os.path.join("datasplits", "train_aisdk-2025-02-27.csv"), seq_input_length=5, seq_output_length=5)
+    trainset = AISDataset(os.path.join("datasplits/train", "train_aisdk-2025-02-27.csv"), seq_input_length=5, seq_output_length=5)
     # 2. Extract stats from Train Set
     train_stats = trainset.stats
     # 3. Pass stats to Validation Set
-    valset = AISDataset(os.path.join("datasplits", "val_aisdk-2025-02-27.csv"), seq_input_length=5, seq_output_length=5, stats=train_stats)
+    valset = AISDataset(os.path.join("datasplits/val", "val_aisdk-2025-02-27.csv"), seq_input_length=5, seq_output_length=5, stats=train_stats)
     
     loss_fn = L1Loss()
 
