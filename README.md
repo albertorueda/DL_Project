@@ -6,36 +6,37 @@
 ---
 
 ## Project Structure
-
-DL_Project/  
-  ├── data/                     # Raw AIS CSV files (added by the user)  
-  ├── datasplits/               # Generated train/val/test splits  
-  ├── modules/  
-  │     ├── ais_preprocessing.py  # AIS cleaning pipeline  
-  |     ├── ais_dataset.py        # Automates the preprocessing and splitting of AIS datasets
-  │     ├── dataset.py            # Pytorch dataset
-  │     ├── losses.py             # Custom losses functions
-  │     └── models.py             # GRU/LSTM models in PyTorch  
-  │     └── metrics.py            # Metrics for the evaluation
-  ├── training/  
-  │     └── training_parameters.py         # Main training loop for training parameters
-  │     └── finetuning_loop_batch_size.py  # Training loop for finetuning batch size 
-  │     └── finetuning_loop_dropout.py     # Training loop for finetuning drop out rate
-  │     └── finetuning_loop_window_size.py # Training loop for finetuning window size
-  │     └── training_final_model.py        # Training loop for final parameters
-  │     └── training_final_model_more_days.py    # Training loop for final parameters, and a larger dataset
-  ├── evaluation/  
-        └── evaluate.py           # Evaluation of the last model with 1 day of data 
-        └── evaluate_more_data.py # Evaluation of the last model with 4 days of data
-  ├── results/                    # Folder for all results
-  ├── final-notebook.ipynb        # User-friendly end-to-end notebook  
-  ├── jobscript.sh                # Cluster batch script  
-  ├── requirements.txt            # Python dependencies  
-  └── README.md                   # This file  
-
+```
+DL_Project/
+├── data/ # Raw AIS CSV files (added by the user)
+├── datasplits/ # Generated train/val/test splits
+├── modules/
+│ ├── ais_preprocessing.py # AIS cleaning pipeline
+│ ├── ais_dataset.py # Automates preprocessing and splitting
+│ ├── dataset.py # PyTorch dataset
+│ ├── losses.py # Custom loss functions
+│ ├── models.py # GRU/LSTM models in PyTorch
+│ └── metrics.py # Metrics for evaluation
+├── training/
+│ ├── training_parameters.py # Main training loop
+│ ├── finetuning_loop_batch_size.py # Finetune batch size
+│ ├── finetuning_loop_dropout.py # Finetune dropout rate
+│ ├── finetuning_loop_window_size.py # Finetune window size
+│ ├── training_final_model.py # Final model training
+│ └── training_final_model_more_days.py # Final model on larger dataset
+├── evaluation/
+│ ├── evaluate.py # Eval with 1 day of data
+│ └── evaluate_more_data.py # Eval with 4 days of data
+├── results/ # All experiment outputs
+├── final-notebook.ipynb # User-friendly notebook
+├── jobscript.sh # Cluster batch script
+├── requirements.txt # Python dependencies
+└── README.md # This file
+```
 ---
 
 ## Getting Started
+As an user of this github repository you can either: use the user-friendly notebook we made, or follow the following steps: 
 
 ### 1. Add AIS Data
 Place AIS CSV files inside the `data/` folder.  
@@ -55,7 +56,7 @@ This will:
 ### 3. Train a Model
 Run:
 
-`python training/training.py`
+`python training/training_final_model.py`
 
 This script:
 - loads the processed data  
@@ -87,27 +88,9 @@ Checkpoints and logs appear in `results/` after completion.
 
 ---
 
-## What This Project Provides
-
-- ✔ A full AIS data pipeline: raw CSV → cleaned → split → train → evaluate  
-- ✔ Recurrent deep learning models (GRU & LSTM) for trajectory prediction  
-- ✔ Automatic saving of model weights and training histories  
-- ✔ Dataset statistics for understanding trajectory quality  
-
----
-
-## Limitations / To-Do
-- evaluation script needs completion  
-- losses.py contains placeholders  
-- no visualization tools (trajectory plots, histograms, etc.)  
-- no hyperparameter configuration system  
-- no license specified  
-
----
-
 ## Requirements
 Dependencies are listed in `requirements.txt`.  
-Core components include:
+This includes:
 - Python  
 - NumPy  
 - Pandas  
@@ -115,16 +98,7 @@ Core components include:
 
 ---
 
-## Contributing
-Ideas for improvement:
-- implement missing loss functions  
-- complete the evaluation pipeline  
-- add visualization utilities  
-- introduce config files / CLI arguments  
-- support multiple AIS datasets or automated ingestion  
 
----
+## Authors
 
-## License
-_No license is currently specified in the repository._
  
