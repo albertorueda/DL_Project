@@ -33,7 +33,16 @@ if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
 
-    model = LSTMModel( #GRUModel(
+    model_gru = GRUModel( #GRUModel(
+        input_size=5,
+        embed_size=64,
+        hidden_size=256,
+        output_size=2,
+        num_layers=2,
+        dropout=0.1,
+    ).to(device)
+    
+    model_lstm = LSTMModel( #LSTMModel(
         input_size=5,
         embed_size=64,
         hidden_size=256,
@@ -42,8 +51,8 @@ if __name__ == "__main__":
         dropout=0.1,
     ).to(device)
 
-    model.load_state_dict(torch.load('results/models/hav_final_model.pth', map_location=device))
-    #model.load_state_dict(torch.load('results/models/mae_final_model.pth', map_location=device))
+    model_gru.load_state_dict(torch.load('results/models/mae_final_model.pth', map_location=device))
+    model_lstm.load_state_dict(torch.load('results/models/hav_final_model.pth', map_location=device))
 
     # --------------------------------------------
     # Load test dataset (use train normalization stats)
@@ -62,25 +71,26 @@ if __name__ == "__main__":
     # --------------------------------------------
     # Evaluate with Haversine Loss (now consistent)
     # --------------------------------------------
-    model.eval()
-    total_loss = 0
-    loss_fn = HaversineLoss(lat_min, lat_max, lon_min, lon_max)
-
-    print("Evaluating model...")
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-
-            # Sanity check
-            assert output.shape == target.shape, \
-                f"Shape mismatch: {output.shape} vs {target.shape}"
-
-            loss = loss_fn(output, target)
-            total_loss += loss.item()
-    
-    average_loss = total_loss / len(test_loader)
-    print(f"Average Test Loss: {average_loss:.4f}")
+    #model.eval()
+    #total_loss = 0
+    #loss_fn = HaversineLoss(lat_min, lat_max, lon_min, lon_max)
+    #loss_fn = torch.nn.L1Loss()
+#
+    #print("Evaluating model...")
+    #with torch.no_grad():
+    #    for data, target in test_loader:
+    #        data, target = data.to(device), target.to(device)
+    #        output = model(data)
+#
+    #        # Sanity check
+    #        assert output.shape == target.shape, \
+    #            f"Shape mismatch: {output.shape} vs {target.shape}"
+#
+    #        loss = loss_fn(output, target)
+    #        total_loss += loss.item()
+    #
+    #average_loss = total_loss / len(test_loader)
+    #print(f"Average Test Loss: {average_loss:.4f}")
     
     # --------------------------------------------
     # Three example predictions decoding
@@ -91,32 +101,44 @@ if __name__ == "__main__":
     # First
     sample_data, sample_target = next(it)
     sample_data = sample_data.to(device)
-    sample_output = model(sample_data)
-    decoded_output = decode_predictions(sample_output, lat_min, lat_max, lon_min, lon_max)
+    sample_output_gru = model_gru(sample_data)
+    sample_output_lstm = model_lstm(sample_data)
+    decoded_output_gru = decode_predictions(sample_output_gru, lat_min, lat_max, lon_min, lon_max)
+    decoded_output_lstm = decode_predictions(sample_output_lstm, lat_min, lat_max, lon_min, lon_max)
     decoded_target = decode_predictions(sample_target, lat_min, lat_max, lon_min, lon_max)
-    print("Sample decoded predictions (latitude, longitude):")
-    print(decoded_output[0].detach().cpu().numpy())
+    print("Sample decoded predictions (latitude, longitude) - GRU:")
+    print(decoded_output_gru[0].detach().cpu().numpy())
+    print("Sample decoded predictions (latitude, longitude) - LSTM:")
+    print(decoded_output_lstm[0].detach().cpu().numpy())
     print("Sample real locations (latitude, longitude):")
     print(decoded_target[0].detach().cpu().numpy())
     
     # Second
     sample_data, sample_target = next(it)
     sample_data = sample_data.to(device)
-    sample_output = model(sample_data)
-    decoded_output = decode_predictions(sample_output, lat_min, lat_max, lon_min, lon_max)
+    sample_output_gru = model_gru(sample_data)
+    sample_output_lstm = model_lstm(sample_data)
+    decoded_output_gru = decode_predictions(sample_output_gru, lat_min, lat_max, lon_min, lon_max)
+    decoded_output_lstm = decode_predictions(sample_output_lstm, lat_min, lat_max, lon_min, lon_max)
     decoded_target = decode_predictions(sample_target, lat_min, lat_max, lon_min, lon_max)
-    print("Next sample decoded predictions (latitude, longitude):")
-    print(decoded_output[1].detach().cpu().numpy())
+    print("Next sample decoded predictions (latitude, longitude) - GRU:")
+    print(decoded_output_gru[1].detach().cpu().numpy())
+    print("Next sample decoded predictions (latitude, longitude) - LSTM:")
+    print(decoded_output_lstm[1].detach().cpu().numpy())
     print("Next sample real locations (latitude, longitude):")
     print(decoded_target[1].detach().cpu().numpy())
     
     # Third
     sample_data, sample_target = next(it)
     sample_data = sample_data.to(device)
-    sample_output = model(sample_data)
-    decoded_output = decode_predictions(sample_output, lat_min, lat_max, lon_min, lon_max)
+    sample_output_gru = model_gru(sample_data)
+    sample_output_lstm = model_lstm(sample_data)
+    decoded_output_gru = decode_predictions(sample_output_gru, lat_min, lat_max, lon_min, lon_max)
+    decoded_output_lstm = decode_predictions(sample_output_lstm, lat_min, lat_max, lon_min, lon_max)
     decoded_target = decode_predictions(sample_target, lat_min, lat_max, lon_min, lon_max)
-    print("Another sample decoded predictions (latitude, longitude):")
-    print(decoded_output[2].detach().cpu().numpy())
+    print("Another sample decoded predictions (latitude, longitude) - GRU:")
+    print(decoded_output_gru[2].detach().cpu().numpy())
+    print("Another sample decoded predictions (latitude, longitude) - LSTM:")
+    print(decoded_output_lstm[2].detach().cpu().numpy())
     print("Another sample real locations (latitude, longitude):")
     print(decoded_target[2].detach().cpu().numpy())

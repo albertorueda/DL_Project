@@ -9,7 +9,7 @@ class AISDataset(Dataset):
         if (seq_input_length != seq_output_length and seq_output_length != 1):
             raise ValueError("Either seq_input_length must be equal to seq_output_length or seq_output_length must be 1.")
         
-        self.dataframe = pd.read_csv(dataset_path)
+        self.dataframe = dataset_path if isinstance(dataset_path, pd.DataFrame) else pd.read_csv(dataset_path)
 
         if 'Timestamp' in self.dataframe.columns:
             self.dataframe['Timestamp'] = pd.to_datetime(self.dataframe['Timestamp'])

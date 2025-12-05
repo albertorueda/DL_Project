@@ -14,11 +14,11 @@ if __name__ == "__main__":
     batch_size = 64 
     dropout_num = 0.2 #FOR THE DROPOUT LAYER IN THE MODEL
     lr = 0.00001 #LEARNING RATE FOR ADAM OPTIMIZER
-    num_epochs = 100 #NUMBER OF EPOCHS TO TRAIN
+    num_epochs = 1000 #NUMBER OF EPOCHS TO TRAIN
     patience = 5 #EARLY STOPPING PATIENCE
     
-    type_of_loss = ['HAVERSINE']#, 'MAE'
-    models_to_test = ['GRU']#, 'LSTM']
+    type_of_loss = ['MAE']#, 'MAE'
+    models_to_test = ['LSTM']#, 'GRU']
 
     trainset = AISDataset('datasplits/train.csv', seq_input_length=sequence_input_length, seq_output_length=sequence_output_length)
     
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     
     num_layers = [4]
     embedding_sizes = 64
-    hidden_size = [64, 128, 256]
+    hidden_size = [64]
     validation_loss_dict = {}
     train_loss_dict = {}
     # Test all combinations of hyperparameters
