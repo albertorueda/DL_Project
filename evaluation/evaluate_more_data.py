@@ -132,19 +132,16 @@ if __name__ == "__main__":
     # --------------------------------------------
     # Decode and display example predictions alongside real trajectories
     # --------------------------------------------
-    
-    sample_data, sample_target = next(iter(test_loader))
-    sample_data = sample_data.to(device)
-    sample_output = model(sample_data)
-    decoded_output = decode_predictions(sample_output, lat_min, lat_max, lon_min, lon_max)
-    decoded_target = decode_predictions(sample_target, lat_min, lat_max, lon_min, lon_max)
-    
-    for i in range(len(decoded_output)):
-        print("---------- Vessel Number " + str(i + 1) + " ----------")
+    for i in range(3):  # Display 3 sample predictions
+        sample_data, sample_target = next(iter(test_loader))
+        sample_data = sample_data.to(device)
+        sample_output = model(sample_data)
+        decoded_output = decode_predictions(sample_output, lat_min, lat_max, lon_min, lon_max)
+        decoded_target = decode_predictions(sample_target, lat_min, lat_max, lon_min, lon_max)
         print(f"Real trajectory:")
-        print(decoded_target[i].detach().cpu().numpy())
+        print(decoded_target[0].detach().cpu().numpy())
         print(f"Predicted trajectory:")
-        print(decoded_output[i].detach().cpu().numpy())
+        print(decoded_output[0].detach().cpu().numpy())
         
         
         

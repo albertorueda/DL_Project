@@ -37,6 +37,7 @@ def decode_predictions(predictions, lat_min, lat_max, lon_min, lon_max):
     decoded[..., 1] = decoded[..., 1] * (lon_max - lon_min) + lon_min
     return decoded
 
+
 def haversine_dist(coords1, coords2):
     """
     Compute average Haversine distance (in km) between batches of coordinate pairs.
@@ -65,6 +66,7 @@ def haversine_dist(coords1, coords2):
         distance += R * c
     return distance / len(coords1)
 
+
 def ADE(coords1, coords2):
     """
     Compute Average Displacement Error (ADE) between two sequences of coordinates.
@@ -84,6 +86,7 @@ def ADE(coords1, coords2):
         # Compute average Haversine distance for each time step across the batch
         distance += haversine_dist(coords1[:, i, :], coords2[:, i, :])
     return distance / seq_len
+
 
 def FDE(coords1, coords2):
     """
@@ -106,6 +109,7 @@ def FDE(coords1, coords2):
     for pred_point, gt_point in zip(final_pred, final_gt):
         distance += haversine_dist(pred_point.unsqueeze(0), gt_point.unsqueeze(0))
     return distance / final_pred.shape[0]
+
 
 def RMSE(coords1, coords2):
     """
