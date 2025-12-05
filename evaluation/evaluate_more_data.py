@@ -1,10 +1,3 @@
-from modules.models import LSTMModel
-import torch
-from modules.dataset import AISDataset  
-import pandas as pd
-from modules.losses import HaversineLoss
-import os
-
 """
 evaluate_more_data.py
 
@@ -21,6 +14,13 @@ Note:
     - This script only performs evaluation and prints results; it does not save
       or overwrite any models or outputs.
 """
+
+from modules.models import LSTMModel
+import torch
+from modules.dataset import AISDataset  
+import pandas as pd
+from modules.losses import HaversineLoss
+import os
 
 # Configuration flags
 MODEL_TYPE = 'LSTM'  # Options: 'LSTM', 'GRU' (currently only LSTM implemented)
